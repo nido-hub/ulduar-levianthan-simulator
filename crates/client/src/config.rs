@@ -25,7 +25,7 @@ pub struct DrivingSettings {
 impl Default for DrivingSettings {
     fn default() -> Self {
         Self {
-            speed: 9.0,
+            speed: 7.0,
             reverse_factor: 0.55,
             strafe_factor: 0.8,
             turn_degrees: 143.0,
@@ -61,7 +61,7 @@ impl Default for CameraSettings {
         Self {
             sensitivity: 0.003,
             invert_y: false,
-            auto_center: true,
+            auto_center: false,
             distance: 19.0,
             pitch_degrees: 28.0,
             fov_degrees: 60.0,
@@ -172,7 +172,7 @@ fn bounded(value: f32, min: f32, max: f32, fallback: f32) -> f32 {
 impl Settings {
     pub fn sanitize(&mut self) -> bool {
         let original = toml::to_string(self).unwrap_or_default();
-        self.driving.speed = bounded(self.driving.speed, 3.0, 18.0, 9.0);
+        self.driving.speed = bounded(self.driving.speed, 3.0, 18.0, 7.0);
         self.driving.reverse_factor = bounded(self.driving.reverse_factor, 0.2, 1.0, 0.55);
         self.driving.strafe_factor = bounded(self.driving.strafe_factor, 0.2, 1.0, 0.8);
         self.driving.turn_degrees = bounded(self.driving.turn_degrees, 45.0, 360.0, 143.0);
@@ -261,7 +261,8 @@ mod tests {
     #[test]
     fn omitted_fields_use_defaults() {
         let settings: Settings = toml::from_str("").unwrap();
-        assert_eq!(settings.driving.speed, 9.0);
+        assert_eq!(settings.driving.speed, 7.0);
+        assert!(!settings.camera.auto_center);
     }
     #[test]
     fn unknown_fields_are_reported() {
@@ -273,7 +274,7 @@ mod tests {
         s.driving.speed = f32::NAN;
         s.camera.distance = 9999.0;
         s.sanitize();
-        assert_eq!(s.driving.speed, 9.0);
+        assert_eq!(s.driving.speed, 7.0);
         assert_eq!(s.camera.distance, 38.0);
     }
     #[test]

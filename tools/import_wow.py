@@ -199,7 +199,8 @@ def resolve_sequence(sequences, index):
         index = sequences[index][-1]
 
 
-def convert_model(read, name, replacements, scale, overrides=None):
+def convert_model(read, name, replacements, scale, overrides=None,
+                  animations=((0, 'Idle'), (4, 'Drive'))):
     data = read(name)
     if data[:4] != b'MD20' or records(data, 4, 1, '<I')[0][0] != 264:
         raise ValueError(f'Expected WotLK M2 version 264: {name}')
@@ -268,9 +269,9 @@ def convert_model(read, name, replacements, scale, overrides=None):
         doc['skins'] = [{'joints': list(range(1, len(bones)+1)),
                          'inverseBindMatrices': glb.accessor(inverse_bind, '<16f', 5126, 'MAT4')}]
 
-        # Only the two locomotion clips used by the trainer, not combat choreography.
+        # Vehicles need locomotion; plants also use their real attack clip.
         doc['animations'] = []
-        for animation_id, label in [(0, 'Idle'), (4, 'Drive')]:
+        for animation_id, label in animations:
             found = next((i for i, a in enumerate(sequences) if a[0] == animation_id and a[1] == 0), None)
             if found is None:
                 continue
@@ -345,8 +346,8 @@ def convert_model(read, name, replacements, scale, overrides=None):
                            'indices': glb.accessor([(i,) for i in indices[start:start+count]], '<I', 5125, 'SCALAR')})
     if not primitives:
         raise ValueError('No renderable mesh sections')
-    if not bones or [a['name'] for a in doc.get('animations', [])] != ['Idle', 'Drive']:
-        raise ValueError(f'Model must contain a skeleton and usable Idle/Drive animations: {name}')
+    if not bones or [a['name'] for a in doc.get('animations', [])] != [label for _, label in animations]:
+        raise ValueError(f'Model must contain a skeleton and usable requested animations: {name}')
     doc['meshes'].append({'name': name, 'primitives': primitives})
     node = {'name': 'VehicleMesh', 'mesh': 0}
     if bones:
@@ -396,12 +397,28 @@ def main():
              {11: r'Creature\MotorcycleVehicle\MotorcycleVehicle_Alliance01.blp',
               12: r'Creature\MotorcycleVehicle\MotorcycleVehicle_Alliance02.blp',
               13: r'Creature\MotorcycleVehicle\MotorcycleVehicle_Alliance02_glow.blp'}, 1., {}),
-            ('leviathan', r'FlameLeviathan\FlameLeviathan', {}, 1., {}),
+            # CreatureDisplayInfo 28875 has scale 3 (template display scale is 1).
+            ('leviathan', r'FlameLeviathan\FlameLeviathan', {}, 3., {}),
         ]
         for key, stem, replacements, scale, overrides in models:
             glb = convert_model(mpq.read, 'Creature\\' + stem + '.M2', replacements, scale, overrides)
             save(key + '.glb', glb)
             print(f'{key}.glb: {len(glb):,} bytes, embedded textures and Idle/Drive clips')
+        # Safety container 33218/display 28782; liquid pyrite 33189/display 28783.
+        for key, stem in [('pyrite-air', 'UL_PyriteFuelCellLarge'),
+                          ('pyrite-ground', 'UL_PyriteFuelCell')]:
+            glb = convert_model(mpq.read, rf'World\EXPANSION02\DOODADS\Ulduar\{stem}.M2',
+                                {}, 1.5, animations=((0, 'Idle'),) if key == 'pyrite-air' else ())
+            save(key + '.glb', glb)
+            print(f'{key}.glb: {len(glb):,} bytes, embedded textures (ground cell is static)')
+        # creature_template_model: 33387 -> display 19030, 34275 -> display 29159.
+        # Both use Lasher.M2; their display scales distinguish lasher and Ward of Life.
+        for key, scale in [('lasher', 0.7), ('ward', 7.0)]:
+            glb = convert_model(mpq.read, r'Creature\Lasher\Lasher.M2',
+                                {11: r'Creature\Lasher\LasherSkinGreen.blp'}, scale,
+                                animations=((0, 'Idle'), (4, 'Drive'), (16, 'Attack')))
+            save(key + '.glb', glb)
+            print(f'{key}.glb: {len(glb):,} bytes, embedded textures and Idle/Drive/Attack clips')
         images = {
             'vehicle-frame': r'Interface\Vehicles\UI-Vehicle-Frame',
             'vehicle-border': r'Interface\Vehicles\UI-Vehicle-Frame-Border',
@@ -451,7 +468,7 @@ def main():
         manifest = {
             'origin': 'Local World of Warcraft 3.3.5a client. Blizzard assets; not freely redistributable.',
             'runtime': 'Standalone GLB/PNG/TTF copies; no client, archive, network or StormLib access at runtime.',
-            'limits': 'Diffuse/emissive materials and Idle/Drive skeletal animation; no WoW reflection shaders, particle emitters or combat attachment choreography.',
+            'limits': 'Diffuse/emissive materials, Idle/Drive skeletal animation, plants also Attack; no WoW reflection shaders or native particle emitters.',
             'sources': mpq.sources, 'outputs': outputs,
         }
         save('manifest.json', json.dumps(manifest, indent=2, ensure_ascii=False).encode('utf8'))

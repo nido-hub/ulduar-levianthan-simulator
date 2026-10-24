@@ -35,6 +35,7 @@ pub struct Effects {
     pub ring: Handle<Mesh>,
     pub flame: Handle<Mesh>,
     pub disk: Handle<Mesh>,
+    pub beam: Handle<Mesh>,
     pub colors: Vec<Handle<StandardMaterial>>,
     pub entities: HashMap<u64, Entity>,
 }
@@ -58,10 +59,18 @@ pub fn smoke_combat(
         raid.0.start();
     }
     // Rendering smoke test, not a survival benchmark: keep the scripted, non-kiting player alive.
-    raid.0.player_mut().hp = 100.;
+    raid.0.player_mut().hp = raid.0.player().max_hp;
+    if let Some(r) = raid
+        .0
+        .riders
+        .iter_mut()
+        .find(|r| r.home == 0 && r.state != RiderState::Lost)
+    {
+        r.hp = leviathan_combat::data::RIDER_HP;
+    }
     // A long render test must reach Freya/projection/shutdown without ending on an early kill.
     if combat_seconds() > 30 {
-        raid.0.boss.hp = raid.0.boss.hp.max(400.);
+        raid.0.boss.hp = raid.0.boss.hp.max(raid.0.boss.max_hp * 0.4);
     }
     let t = raid.0.time;
     let (cam, transform) = *camera;
@@ -109,7 +118,10 @@ pub fn smoke_combat(
         }
     };
     let p = raid.0.boss.position;
-    let aimed = spells(raid.0.role)[slot].aimed;
+    let Some(spell) = raid.0.active_spells().get(slot).copied() else {
+        return;
+    };
+    let aimed = spell.aimed;
     if raid
         .0
         .cast(slot, if aimed { Some(p) } else { None })
@@ -153,13 +165,8 @@ pub fn request(slot: usize, raid: &Raid, aim: &mut Targeting) {
         aim.notice_time = 3.;
         return;
     }
-    if let Some(spell) = spells(raid.0.role).get(slot) {
-        if !raid.0.onboard() {
-            aim.notice = "Passager projeté : attendre la récupération par une moto.".into();
-            aim.notice_time = 3.;
-            return;
-        }
-        if raid.0.player().cooldowns[slot] > 0. {
+    if let Some(spell) = raid.0.active_spells().get(slot) {
+        if raid.0.onboard() && raid.0.cooldowns()[slot] > 0. {
             aim.notice = "Sort en recharge.".into();
             aim.notice_time = 2.;
             return;
@@ -223,7 +230,8 @@ pub fn commands(
         );
     }
     if raid.0.outcome == Outcome::Ready && keys.just_pressed(KeyCode::F7) {
-        raid.0.towers = !raid.0.towers;
+        let towers = !raid.0.towers;
+        raid.0.set_towers(towers);
     }
     if state.paused {
         return;
@@ -264,6 +272,11 @@ pub fn targeting(
         return;
     }
     if let Some(slot) = aim.slot {
+        if !raid.0.onboard() || (raid.0.role == Role::DemoPassenger && raid.0.player().loaded) {
+            aim.slot = None;
+            aim.point = None;
+            return;
+        }
         let Some(cursor) = window.cursor_position() else {
             aim.point = None;
             return;
@@ -368,12 +381,33 @@ pub fn setup_effects(
         double_sided: true,
         ..default()
     }));
+    colors.push(materials.add(StandardMaterial {
+        base_color: Color::srgba(0.35, 0.65, 1., 0.12),
+        emissive: LinearRgba::new(0.15, 0.45, 1., 1.) * 2.,
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        ..default()
+    }));
+    colors.push(materials.add(StandardMaterial {
+        base_color: Color::srgb(0.7, 0.88, 1.),
+        emissive: LinearRgba::new(0.4, 0.7, 1., 1.) * 5.,
+        unlit: true,
+        ..default()
+    }));
+    colors.push(materials.add(StandardMaterial {
+        base_color: Color::srgba(0.72, 0.92, 1., 0.65),
+        emissive: LinearRgba::new(0.25, 0.5, 0.8, 1.) * 0.6,
+        alpha_mode: AlphaMode::Blend,
+        perceptual_roughness: 0.12,
+        ..default()
+    }));
     commands.insert_resource(Effects {
         cube: meshes.add(Cuboid::default()),
         ball: meshes.add(Sphere::new(1.).mesh().uv(12, 8)),
         ring: meshes.add(Torus::new(0.94, 1.)),
         flame: meshes.add(Rectangle::new(1., 1.)),
         disk: meshes.add(Circle::new(1.)),
+        beam: meshes.add(Cylinder::new(1., 1.)),
         colors,
         entities: HashMap::new(),
     });
@@ -472,6 +506,7 @@ pub fn render(
                     1 => effects.cube.clone(),
                     3 => effects.flame.clone(),
                     4 => effects.disk.clone(),
+                    5 => effects.beam.clone(),
                     _ => effects.ring.clone(),
                 };
                 if mesh.0 != desired {
@@ -487,6 +522,7 @@ pub fn render(
                 1 => effects.cube.clone(),
                 3 => effects.flame.clone(),
                 4 => effects.disk.clone(),
+                5 => effects.beam.clone(),
                 _ => effects.ring.clone(),
             };
             let mut entry = commands.spawn((
@@ -495,7 +531,7 @@ pub fn render(
                 MeshMaterial3d(effects.colors[color].clone()),
                 t,
             ));
-            if shape == 3 {
+            if shape == 3 || shape == 5 {
                 entry.insert(bevy::light::NotShadowCaster);
             }
             let entity = entry.id();
@@ -542,39 +578,6 @@ pub fn render(
             Quat::IDENTITY,
         );
     }
-    for c in &f.crates {
-        let height = if c.air > 0. { 8. } else { 0.8 };
-        draw(
-            c.id,
-            Vec3::new(
-                c.position.x,
-                if c.air > 0. { 8. } else { 0.8 },
-                c.position.z,
-            ),
-            Vec3::splat(0.9),
-            1,
-            0,
-            Quat::from_rotation_y(0.5),
-        );
-        draw(
-            c.id + (1_u64 << 59),
-            Vec3::new(c.position.x, height + 0.75, c.position.z),
-            Vec3::splat(0.5),
-            0,
-            1,
-            Quat::IDENTITY,
-        );
-    }
-    for a in &f.adds {
-        draw(
-            a.id,
-            Vec3::new(a.position.x, 1.4, a.position.z),
-            Vec3::new(1., 1.5, 1.),
-            0,
-            6,
-            Quat::IDENTITY,
-        );
-    }
     for r in &f.riders {
         if r.state == RiderState::Ground
             || (r.home == f.role.index()
@@ -586,7 +589,7 @@ pub fn render(
                 Vec3::new(
                     r.position.x,
                     if r.state == RiderState::Turret {
-                        8.5
+                        if model.boss_loaded { 19.5 } else { 8.5 }
                     } else {
                         1.
                     },
@@ -600,6 +603,98 @@ pub fn render(
         }
     }
     for h in &f.hazards {
+        if matches!(h.kind, HazardKind::Storm | HazardKind::Frost) {
+            let frost = h.kind == HazardKind::Frost;
+            let strike = h.strike_at();
+            let impact = h.age >= strike && h.age < strike + 0.8;
+            let base = Vec3::new(h.position.x, 0.15, h.position.z);
+            draw(
+                h.id,
+                base,
+                Vec3::new(h.radius, 0.08, h.radius),
+                2,
+                if frost { 3 } else { 4 },
+                Quat::IDENTITY,
+            );
+            draw(
+                h.id | (16 << 56),
+                base + Vec3::Y * 26.,
+                Vec3::new(
+                    if impact { 2. } else { 0.5 },
+                    52.,
+                    if impact { 2. } else { 0.5 },
+                ),
+                5,
+                12,
+                Quat::IDENTITY,
+            );
+            if !frost || h.age >= 0. {
+                draw(
+                    h.id | (17 << 56),
+                    base + Vec3::Y * 26.,
+                    Vec3::new(0.10, 52., 0.10),
+                    5,
+                    13,
+                    Quat::IDENTITY,
+                );
+            }
+            if impact && !frost {
+                for j in 0..7 {
+                    let y0 = j as f32 * 7.;
+                    let y1 = y0 + 7.;
+                    let a = base
+                        + Vec3::new(
+                            if j == 0 {
+                                0.
+                            } else {
+                                (j as f32 * 3.1 + h.id as f32).sin() * 2.
+                            },
+                            y0,
+                            (j as f32 * 2.).sin(),
+                        );
+                    let b = base
+                        + Vec3::new(
+                            ((j + 1) as f32 * 3.1 + h.id as f32).sin() * 2.,
+                            y1,
+                            ((j + 1) as f32 * 2.).sin(),
+                        );
+                    let delta = b - a;
+                    draw(
+                        h.id | ((18 + j as u64) << 56),
+                        (a + b) * 0.5,
+                        Vec3::new(0.25, delta.length(), 0.25),
+                        5,
+                        13,
+                        Quat::from_rotation_arc(Vec3::Y, delta.normalize()),
+                    );
+                }
+            }
+            if frost && h.age >= strike - 1. && h.age < strike {
+                let height = (strike - h.age) * 42.;
+                draw(
+                    h.id | (26 << 56),
+                    base + Vec3::Y * height,
+                    Vec3::splat(1.8),
+                    0,
+                    14,
+                    Quat::from_rotation_z(0.4),
+                );
+            }
+            if frost && impact {
+                for j in 0..8 {
+                    let a = j as f32 * std::f32::consts::TAU / 8.;
+                    draw(
+                        h.id | ((28 + j as u64) << 56),
+                        base + Vec3::new(a.sin() * 3., 1.5, a.cos() * 3.),
+                        Vec3::new(0.5, 4., 0.5),
+                        1,
+                        14,
+                        Quat::from_euler(EulerRot::XYZ, a.sin() * 0.6, a, a.cos() * 0.6),
+                    );
+                }
+            }
+            continue;
+        }
         if (h.kind == HazardKind::Fire && h.age > 0.8) || (h.kind == HazardKind::Tar && h.burning) {
             draw(
                 h.id,
@@ -710,7 +805,7 @@ pub fn render(
         draw(
             u64::MAX - 33,
             Vec3::new(f.boss.position.x, 0.12, f.boss.position.z),
-            Vec3::new(28., 0.08, 28.),
+            Vec3::new(50., 0.08, 50.),
             2,
             2,
             Quat::IDENTITY,
@@ -733,6 +828,14 @@ pub fn after_step(raid: &mut Raid, sim: &mut Simulation, dt: f32, aim: &mut Targ
     let index = raid.0.role.index();
     if raid.0.role.drives() {
         raid.0.vehicles[index].body = sim.current;
+    } else if raid.0.role == Role::DemoPassenger
+        && let Some(r) = raid
+            .0
+            .riders
+            .iter_mut()
+            .find(|r| r.home == index && r.state == RiderState::Ground && r.hp > 0.)
+    {
+        r.position = sim.current.position;
     }
     let queued = std::mem::take(&mut aim.queued);
     for (slot, p) in queued {
@@ -742,24 +845,71 @@ pub fn after_step(raid: &mut Raid, sim: &mut Simulation, dt: f32, aim: &mut Targ
         }
     }
     raid.0.tick(dt);
+    if !raid.0.onboard() {
+        aim.slot = None;
+        aim.point = None;
+    }
     if !raid.0.role.drives() {
-        sim.current = raid.0.player().body;
-        if raid.0.role == Role::DemoPassenger
-            && !raid.0.onboard()
-            && let Some(r) = raid
-                .0
-                .riders
-                .iter()
-                .find(|r| r.home == 0 && r.state != RiderState::Lost)
-        {
-            sim.current.position = r.position;
+        if raid.0.onboard() {
+            sim.current = raid.0.player().body;
+        } else if !raid.0.player_can_move() {
+            sim.current.velocity = Point::default();
         }
+        sim.current.position = raid.0.player_position();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ground_passenger_movement_keeps_its_heading_instead_of_the_home_vehicles() {
+        let mut raid = Raid(Fight::new(Role::DemoPassenger, true));
+        raid.0.start();
+        raid.0.player_mut().passenger = false;
+        let position = Point { x: 80., z: 80. };
+        raid.0.riders.push(leviathan_combat::Rider {
+            id: 901,
+            home: 0,
+            position,
+            state: RiderState::Ground,
+            hp: 22_000.,
+        });
+        let mut sim = Simulation::default();
+        sim.current.position = position;
+        sim.current.heading = 1.2;
+        sim.current.step_vehicle(
+            leviathan_driving::vehicle_controls(1., 0., None),
+            leviathan_driving::DriveConfig::default(),
+            leviathan_driving::Arena::default(),
+            1. / 60.,
+        );
+        after_step(&mut raid, &mut sim, 1. / 60., &mut Targeting::default());
+        assert!(raid.0.player_can_move());
+        assert_ne!(sim.current.position, position);
+        assert_eq!(
+            sim.current.position,
+            raid.0.player_rider().unwrap().position
+        );
+        assert_eq!(sim.current.heading, 1.2);
+    }
+    #[test]
+    fn projected_passenger_button_queues_an_instant_turret_attack() {
+        let mut raid = Raid(Fight::new(Role::DemoPassenger, true));
+        raid.0.start();
+        raid.0.player_mut().passenger = false;
+        raid.0.riders.push(leviathan_combat::Rider {
+            id: 900,
+            home: 0,
+            position: raid.0.boss.position,
+            state: RiderState::Turret,
+            hp: 22_000.,
+        });
+        let mut aim = Targeting::default();
+        request(0, &raid, &mut aim);
+        assert_eq!(aim.queued, vec![(0, None)]);
+        assert!(aim.slot.is_none());
+    }
     #[test]
     fn aimed_spell_selection_waits_for_click_without_firing() {
         let mut raid = Raid::default();

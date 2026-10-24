@@ -1,7 +1,7 @@
 {
   "origin": "Local World of Warcraft 3.3.5a client. Blizzard assets; not freely redistributable.",
   "runtime": "Standalone GLB/PNG/TTF copies; no client, archive, network or StormLib access at runtime.",
-  "limits": "Diffuse/emissive materials and Idle/Drive skeletal animation; no WoW reflection shaders, particle emitters or combat attachment choreography.",
+  "limits": "Diffuse/emissive materials, Idle/Drive skeletal animation, plants also Attack; no WoW reflection shaders or native particle emitters.",
   "sources": {
     "Creature\\DemolisherVehicle\\DemolisherVehicle.M2": {
       "archive": "patch-2.MPQ",
@@ -74,6 +74,66 @@
     "CREATURE\\FLAMELEVIATHAN\\FLAMELEVIATHAN_GLOW.BLP": {
       "archive": "patch.MPQ",
       "sha256": "d4839301b2f7a564db402ba4d9d80c8b2f5a0d61974e608790fb25074ac98d7a"
+    },
+    "World\\EXPANSION02\\DOODADS\\Ulduar\\UL_PyriteFuelCellLarge.M2": {
+      "archive": "patch.MPQ",
+      "sha256": "57656ae6f257e52489313ba44b3dc6481c972dbf228953cfa7a97c3ad717e754"
+    },
+    "World\\EXPANSION02\\DOODADS\\Ulduar\\UL_PyriteFuelCellLarge00.skin": {
+      "archive": "patch.MPQ",
+      "sha256": "c3d9889c750fe4df1adeb0e17aa81e5e623f9daa4c66d15bb54bd7a473823778"
+    },
+    "WORLD\\EXPANSION01\\DOODADS\\ZANGAR\\MUSHROOM\\GLOWBALL02.BLP": {
+      "archive": "patch.MPQ",
+      "sha256": "f30653dffa5416a971178bfe5f70d4ee0fc8afedb97cf864111be1baae911ef7"
+    },
+    "DUNGEONS\\TEXTURES\\ULDUAR\\TITANMACHINERY\\ULDR_MACHINE_TUMBLER2.BLP": {
+      "archive": "patch.MPQ",
+      "sha256": "b5f254978c96470bec798aa8c16ca921a7dfadc1c4b15143b68befd2d0a71fd2"
+    },
+    "DUNGEONS\\TEXTURES\\ULDUAR\\TITANMACHINERY\\ULDR_MACHINE_GEAR_STEEL.BLP": {
+      "archive": "lichking.MPQ",
+      "sha256": "e5ae50a8e562c2be9da26fd7d4d0848fdfe372f26a3582893261f55d4844c3a9"
+    },
+    "DUNGEONS\\TEXTURES\\ULDUAR\\TITANMACHINERY\\ULDR_MACHINE_CAP.BLP": {
+      "archive": "patch.MPQ",
+      "sha256": "4d44c46e6841e7cf9b018de9c6fd5f8132086c32e032bb82924f0f795bdf121e"
+    },
+    "WORLD\\EXPANSION02\\DOODADS\\ULDUAR\\GRADIENT64FLIP.BLP": {
+      "archive": "patch.MPQ",
+      "sha256": "10c964a1ec4fdf3ec9fd25f02d533d83611ceadd96e11ea4434421bbb56d8321"
+    },
+    "INTERFACE\\BUTTONS\\BLUEGRAD64.BLP": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "7ea6bc1645dbe2c6fc6325ba64770b280d9339550059670a3bb6dc29d8e37b3b"
+    },
+    "World\\EXPANSION02\\DOODADS\\Ulduar\\UL_PyriteFuelCell.M2": {
+      "archive": "patch.MPQ",
+      "sha256": "bb2649507baf9d4d87d615afbe2589c3391457c9e38fd1c0f992f6bc4636a457"
+    },
+    "World\\EXPANSION02\\DOODADS\\Ulduar\\UL_PyriteFuelCell00.skin": {
+      "archive": "patch.MPQ",
+      "sha256": "7151e05e159255e3ef3c470f81a73dff03e0243d133cfbd5491a1b993093b8f3"
+    },
+    "WORLD\\EXPANSION02\\DOODADS\\ULDUAR\\GLASSCRACKED.BLP": {
+      "archive": "patch.MPQ",
+      "sha256": "cf421dbd4549ce1442cf8183550a01b44ef43948bbcd42d8912d769191b62c05"
+    },
+    "WORLD\\EXPANSION02\\DOODADS\\ULDUAR\\GLOWRING.BLP": {
+      "archive": "patch.MPQ",
+      "sha256": "c7f104bf5a3652e720f0884a7a86b1636753b0f7dac8044b96fd74d09bc63f2d"
+    },
+    "Creature\\Lasher\\Lasher.M2": {
+      "archive": "patch.MPQ",
+      "sha256": "4882e441dee0eea1288158b6773925249a81bc671b4796e3ff23fa7bf0b12e75"
+    },
+    "Creature\\Lasher\\Lasher00.skin": {
+      "archive": "patch.MPQ",
+      "sha256": "a45cdd08303fa2068546145267807b8a186ef86ddcb3d642a14800920f65c679"
+    },
+    "Creature\\Lasher\\LasherSkinGreen.blp": {
+      "archive": "common.MPQ",
+      "sha256": "d7685c865708e4ebc44995295150d66081ccf60f29a27120c386d5331fda2716"
     },
     "Interface\\Vehicles\\UI-Vehicle-Frame.blp": {
       "archive": "locale-enUS.MPQ",
@@ -208,7 +268,11 @@
     "demolisher.glb": "57a580a095d6685f5f8e035935db91c4a38d686f0ae1d96090f79461f0758fc5",
     "siege.glb": "cd9651ac4ecddcb652b64a77801b388329591a4d3a585d39afdc3abf785dbc0b",
     "moto.glb": "80c545a53e1cf35619df6c5a47d08719073e4124dc0ee635cf9a083c86babfd4",
-    "leviathan.glb": "b51f2b2fb1c0bc2be5bbf8a8e34561670e4ff942a502f7467edb6514e96153ca",
+    "leviathan.glb": "e6bbc95b907f229ea7d73e508ce220557932b241485193fd7cf51a4ab93d9034",
+    "pyrite-air.glb": "3ecb3cba9a938e0829d4b7707c6787a152fc15315ea32e9a7063552d6b2e9a69",
+    "pyrite-ground.glb": "8e4ca5eb9bb44b3f0a946310481c0bc6223967dd115b49430eae371da2a8116d",
+    "lasher.glb": "d6671a2b23822a6d9924dd73a02e4c491f92b7371dc84cfc2d5575bab06e186f",
+    "ward.glb": "702c0e440b8a52d99a7123fe3190c2669fbcf1b415a6255271ba864c6aca1a0c",
     "ui/vehicle-frame.png": "03ab2073b6315afaff6ed7b5b785b709bc5648f1a1d65bcb2ef883bb31368a83",
     "ui/vehicle-border.png": "eb9e8a31c8d01afcd49a71f654464d3efaf9427e3cd018bfacaca2d0af86c83c",
     "ui/vehicle-trim.png": "0a13ca4d1b686b63d32a3c7214e69a834696247e2008240b7bc6cc476b9069fc",

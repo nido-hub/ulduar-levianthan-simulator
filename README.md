@@ -1,8 +1,10 @@
-# Leviathan Rust — combat natif 0.3, visuels WoW locaux
+# Leviathan Rust — combat natif 0.3, HM 10 / ilvl 215
 
-Prototype Windows **Rust / Bevy 0.20.0** pour s'entraîner au Léviathan des flammes. La conduite et la caméra de la version validée sont conservées, avec suppression du strafe, et la simulation de combat tourne dans un module indépendant du rendu.
+Application Windows **Rust / Bevy 0.20.0** pour s'entraîner au Léviathan des flammes. Profil par défaut : **10 joueurs, quatre tours, équipement épique ilvl 215**, vitesse **7 u/s**, retour automatique de caméra **Non** (réactivable dans Échap). La conduite reste sans strafe ; la simulation de combat est indépendante du rendu.
 
 Les modèles et textures des **démolisseurs, sièges, motos et du Léviathan** sont désormais copiés du client local et convertis en GLB autonomes, avec squelette et animations de repos/conduite. Le HUD utilise les cadres, icônes de sorts et police du client WotLK, avec PV, ressource, charges de pyrite et recharges. **WoW n'est pas requis pour lancer la livraison : conserver simplement `assets/` à côté de l'exécutable.**
+
+La pyrite utilise aussi les vrais modèles du client : conteneur aérien animé et cellule au sol, à leur échelle d'affichage **×1,5**. Le Léviathan utilise désormais son échelle WotLK **×3**, au lieu du modèle brut ×1 ; les portées et dégâts ne changent pas.
 
 ## Télécharger et jouer sans compiler
 
@@ -69,30 +71,31 @@ Un passager ne conduit pas : le conducteur IA déplace son véhicule. Le déplac
 
 ### Projections et secours
 
-En conducteur de démolisseur, le passager IA prépare son chargement après un délai ; la projection manuelle est ensuite disponible. Un tir mal placé peut déposer le passager au sol sans atteindre le boss.
+En conducteur de démolisseur, le passager IA utilise son accélération quand le véhicule est poursuivi : **25 pyrites, +100 % de vitesse pendant 20 s**, uniquement s'il est encore à son poste. Il prépare ensuite son chargement ; la projection manuelle devient disponible. Un tir mal placé peut déposer le passager au sol sans atteindre le boss.
 
-En passager de démolisseur, **5** charge la catapulte et le conducteur IA déclenche la projection à portée. La collecte est indisponible pendant l'absence du passager. Une fois deux passagers sur le boss, la neutralisation des tourelles est **automatisée** ; la surcharge immobilise le boss, augmente les dégâts reçus et ramène les passagers au sol.
+En passager de démolisseur, **5** charge la catapulte et le conducteur IA déclenche la projection à portée. Une fois sur le boss, **1 ou le bouton « Attaquer les tourelles »** lance l'attaque continue : pas besoin de marteler. Un seul tireur peut détruire successivement les deux tourelles. Leurs PV sont affichés ; le joueur ne DPS pas sans cette commande. Les deux destructions déclenchent automatiquement la surcharge : **20 s, dégâts reçus +50 %, vitesse accumulée supprimée**, puis éjection et récupération par moto. La collecte et les autres compétences de véhicule sont indisponibles hors du poste.
 
-En moto, approcher un joueur au sol et utiliser **4**, le soigner avec **5**, puis rejoindre son démolisseur d'origine et réutiliser **4** pour le déposer. Les motos IA accomplissent les secours lorsqu'elles ne sont pas contrôlées par le joueur.
+En moto, approcher un joueur au sol et utiliser **4**, le soigner avec **5**, puis rejoindre son démolisseur d'origine et réutiliser **4** pour le déposer. Si son démolisseur a été détruit, **4** le dépose au sol ; la destruction du porteur le libère également. Un passager vivant au sol peut se déplacer avec les commandes habituelles, mais pas pendant le vol, sur le boss ou pendant le transport. Les motos IA accomplissent les secours lorsqu'elles ne sont pas contrôlées par le joueur.
 
 ## Combat et raid simulé
 
 - Six véhicules : deux démolisseurs, deux sièges et deux motos ; quatre passagers, soit dix occupants simulés avant les projections.
-- Boss mobile, poursuite des démolisseurs/sièges, changement de cible, augmentation progressive de vitesse, percussion de proximité, Décharges interruptibles et dégâts de barrage simplifiés.
+- Boss : environ **23,01 M PV normal / 88,39 M PV quatre tours** ; véhicules à **913 500 / 1 644 300 / 730 800 PV** (démolisseur/siège/moto) avec le profil épique 215.
+- Poursuite des démolisseurs/sièges, charges de vitesse persistantes entre poursuites, bélier et vulnérabilité cumulable, Décharges canalisées interruptibles, barrages et napalm.
 - Pyrite jusqu'à dix charges, expiration, ressources limitées et caisses aériennes/au sol.
 - Goudron ralentissant le boss et les adds ; les tirs de feu peuvent l'enflammer ou libérer les véhicules gelés.
-- Tours : impacts de Thorim, boucle centrale horaire en losange arrondi pour Mimiron, rayon de givre d'Hodir, vagues de renforts de Freya.
+- Tours : balises/rayons de Thorim avec frappe et atténuation à distance, trajet Mimiron issu des waypoints de référence, balises de givre d'Hodir avec verrouillage et impact, gardiens et flagellants de Freya dans les quatre angles. Les plantes utilisent des modèles locaux animés (repos/conduite/attaque), avec secours végétal si l'asset manque.
 - Victoire à la mort du boss, défaite à la destruction du véhicule assigné, bilan dans le HUD et nouvelle tentative rapide.
 
 ## Limites de fidélité
 
-C'est une **première implémentation jouable**, pas une certification du combat original 3.3.5. PV, dégâts, portées, ressources, recharges, courbes de vitesse et calendriers sont normalisés pour l'entraînement. Les bonus passifs exacts des tours, le GCD complet et le scaling d'équipement ne sont pas reproduits.
+Les valeurs principales sont rapprochées de la référence **WotLK 3.3.5a / AzerothCore**, avec bonus des tours, scaling du profil 215 et GCD séparés par poste. Sources, formules et différences sont dans [`docs/wotlk-reference.md`](docs/wotlk-reference.md). **Ce n'est pas encore une reproduction complète exacte**, ni une certification de la configuration privée ChromieCraft : cadence du napalm, dégâts moyens de contact/plantes, ruée du siège représentée par un boost, physique et décisions IA restent des approximations explicites.
 
-La salle reste une création originale stylisée. Les véhicules sont les modèles WoW copiés, avec des dimensions adaptées à la simulation existante. La physique reste sur un plan horizontal ; les trajectoires sont visuelles et les impacts utilisent des zones simplifiées. Pas de collisions entre véhicules ni de physique verticale complète, pas de sélection de classes ou combat manuel sur les tourelles, pas de multijoueur. Les visuels originaux restent disponibles en secours si les GLB sont absents ou invalides ; un chargement asynchrone défaillant ne masque pas son secours.
+La salle reste stylisée, agrandie pour les portées du combat. La physique est horizontale, les impacts utilisent des zones ; pas de collisions entre véhicules ni de physique verticale complète. Le bouton de tourelles utilise un **profil de tireur abstrait : 3 500 DPS / 22 000 PV**, pas une rotation de classe déduite de l'ilvl. Pas de sélection de classes, de changement libre de véhicule, de transport de pyrite en moto ni de multijoueur. Les visuels procéduraux restent disponibles si les GLB sont absents ou invalides ; un chargement asynchrone défaillant ne masque pas son secours.
 
 Le rendu conserve les textures diffuses, l'émission et les animations de repos/conduite, mais pas les shaders de réflexion, émetteurs de particules, accessoires de combat attachés ni toute la chorégraphie du client WoW. Les pilotes ne sont pas des personnages WoW importés. Le résultat n'est donc pas une reproduction pixel pour pixel du jeu.
 
-L'IA est heuristique et ne garantit ni esquive parfaite, ni survie du raid. Elle utilise une visée simplifiée vers le boss. Le joueur, lui, ne bénéficie pas de cette automatisation pour ses projectiles. Les gunners alliés peuvent faire tomber des caisses ; un ravitaillement manuel rapide reste possible. Les vagues de Freya et les effets élémentaires sont des représentations simplifiées. La phase des tourelles est une séquence automatique après les deux projections, pas un nouveau poste de DPS à pied.
+L'IA est heuristique et ne garantit ni esquive parfaite, ni survie du raid. Elle utilise les mêmes coûts/recharges et une visée simplifiée vers le boss ; le joueur vise ses projectiles manuellement. Les gunners font tomber les caisses avant collecte. Les moyennes de dégâts et les choix déterministes remplacent le hasard, l'armure et les rotations de dix humains. Les phases et modèles doivent encore être confrontés à des relevés du serveur pour annoncer une fidélité intégrale.
 
 ## Réglages et ressources graphiques
 
@@ -127,13 +130,13 @@ Les tests de rendu de combat conservent volontairement le joueur automatisé en 
 
 Les captures et rapports sont dans `dist/validation*.png` et `dist/validation*.txt`. Les logs du dernier test sont dans `dist/native-stderr.log`. En cas de plantage, regarder `dist/panic.log`. Le script vérifie la fraîcheur des rapports ; aucun résultat ancien n'est utilisé pour déclarer un succès.
 
-### Validation des nouveaux visuels — 24 octobre 2026
+### Validation du profil HM 215 — 24 octobre 2026
 
-- **70 tests Rust passent** : 20 conduite/caméra, 27 combat et 23 configuration/visée/assets/HUD. Treize tests Python du convertisseur passent, dont l'accès MPQ réel lorsque `WOW_STORMLIB` désigne la DLL locale (sinon ce seul test est ignoré). Les contrôles incluent les valeurs non finies et les animations obligatoires manquantes ou de durée nulle.
-- Les cinq postes ont chacun passé un essai GPU de plus de 20 secondes ; dix scènes et dix lecteurs d'animation chargent leurs ressources copiées. Captures par poste dans `dist/validation-combat-<poste>.png`.
-- Le menu et le secours procédural ont chacun passé leur essai natif. Un essai passager de **76 secondes** a aussi passé la validation, avec une surcharge du boss et maintien des dix scènes/lecteurs d'animation ; rapport `dist/validation-wow-passenger-long.txt`. Les anciennes validations prolongées du conducteur restent historiques et n'ont pas été rejouées pour ce changement visuel.
-- **Autonomie vérifiée** : copie du binaire, des assets et des réglages dans un répertoire temporaire hors de WoW, lancement depuis un autre répertoire, essai à 960 × 640 et activation d'une compétence via les messages souris de la fenêtre native. Le rapport confirme que les dix GLB viennent des assets copiés : `dist/validation-standalone.txt` et `.png`.
-- Les réglages de la livraison existante ont été comparés avant/après le test autonome et préservés. Les captures ne remplacent pas une validation humaine exhaustive de chaque animation et de chaque condition de combat.
+- **99 tests Rust passent** : 20 conduite/caméra, 53 combat et 26 configuration/visée/assets/HUD. **14 tests Python** passent avec accès MPQ réel (`WOW_STORMLIB`) ; sinon ce seul test est ignoré. Régressions : boost IA payé, GCD indépendants/hors GCD, bouton tourelles, dégâts au sol, vol/transport, santé absolue et changement de difficulté.
+- Les cinq postes ont passé des essais GPU de plus de 20 secondes ; dix scènes et dix lecteurs d'animation chargent leurs ressources copiées. Captures et rapports `dist/validation-hm215-<poste>.*`. L'essai **passager de 101 secondes** a été rejoué après le dernier correctif de ciblage des plantes : une surcharge, 24 scènes végétales chargées. Les quatre essais courts précèdent ce dernier correctif, dont le chemin de code n'est atteint qu'après les premières vagues de Freya ; pas de certification exhaustive des cinq postes.
+- Le menu et le secours procédural ont passé leur essai natif après ce dernier correctif. Les anciennes validations `validation-wow-*`, `validation-final-*` et autres captures antérieures sont historiques.
+- **Autonomie vérifiée** : copie du binaire, des assets et des réglages hors de WoW, lancement depuis `C:\Windows`, essai à **960 × 640** ; rapport `dist/validation-hm215-standalone.txt` et `.png`, provenant des assets copiés. Ce contrôle utilise le scénario natif automatisé, pas des clics humains exhaustifs.
+- Les réglages de la livraison ont été comparés avant/après le test autonome et préservés. Les tests de rendu maintiennent la santé du joueur et du boss pour atteindre les phases ; un scénario headless distinct teste la fin d'une tentative HM sans ces aides.
 
 Ces tests ne valident pas une fidélité parfaite des valeurs 3.3.5, une IA infaillible ni le ressenti humain de toutes les situations. Les modèles et l'équilibrage restent ceux d'un prototype.
 

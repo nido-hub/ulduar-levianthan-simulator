@@ -2,6 +2,8 @@
 
 mod config;
 mod models;
+mod plants;
+mod pyrite;
 mod raid;
 mod scene;
 mod textures;
@@ -181,6 +183,8 @@ fn main() {
                 wow::load,
                 models::load,
                 raid::setup_effects,
+                plants::setup,
+                pyrite::setup,
                 raid::initialize,
             )
                 .chain(),
@@ -206,6 +210,10 @@ fn main() {
                 raid::targeting,
                 raid::render,
                 wow::animate,
+                plants::sync,
+                plants::animate,
+                pyrite::sync,
+                pyrite::animate,
                 ui::update,
                 ui::update_hud,
                 ui::button_style,
@@ -371,15 +379,7 @@ fn gather_controls(
     }
     controls.0 =
         leviathan_driving::vehicle_controls(input.forward, input.turn, input.heading_override);
-    if !raid.0.role.drives()
-        || !raid.0.onboard()
-        || raid.0.player().frozen > 0.
-        || raid.0.player().hp <= 0.
-        || matches!(
-            raid.0.outcome,
-            leviathan_combat::Outcome::Victory | leviathan_combat::Outcome::Defeat
-        )
-    {
+    if !raid.0.player_can_move() {
         controls.0 = DriveInput::default();
     }
 }
@@ -399,16 +399,17 @@ fn simulate(
     sim.previous = sim.current;
     let mut driving = config.settings.driving.physics();
     driving.strafe_factor = 0.;
-    driving.speed *= match raid.0.player().kind {
-        leviathan_combat::Kind::Moto => 1.5,
-        leviathan_combat::Kind::Siege => 1.08,
-        _ => 1.,
-    } * if raid.0.player().boost > 0. { 1.7 } else { 1. };
-    let control = if raid.0.player().frozen > 0. || raid.0.player().hp <= 0. {
-        DriveInput::default()
+    driving.speed *= if raid.0.onboard() {
+        raid.0.player().speed_multiplier()
     } else {
-        controls.0
+        1.
     };
+    let control =
+        if (raid.0.onboard() && raid.0.player().frozen > 0.) || raid.0.health_fraction() <= 0. {
+            DriveInput::default()
+        } else {
+            controls.0
+        };
     sim.current
         .step_vehicle(control, driving, Arena::default(), time.delta_secs());
     let current = sim.current;
@@ -429,6 +430,7 @@ fn render_vehicle(
     parents: Query<&ChildOf>,
     bodies: Query<&raid::RaidBody>,
     bosses: Query<(), With<raid::BossBody>>,
+    models: Res<models::ModelStatus>,
 ) {
     let alpha = time.overstep_fraction();
     player.translation = Vec3::new(
@@ -441,7 +443,7 @@ fn render_vehicle(
                 .iter()
                 .any(|r| r.home == 0 && r.state == leviathan_combat::RiderState::Turret)
         {
-            7.5
+            if models.boss_loaded { 18.5 } else { 7.5 }
         } else {
             0.0
         },
@@ -507,7 +509,7 @@ fn update_camera(
         1.0 - (-config.settings.camera.follow_response * dt).exp(),
     );
     let desired = control.center + Vec3::from_array(control.orbit.offset());
-    let fraction = camera_wall_fraction(control.center.to_array(), desired.to_array(), 58.0);
+    let fraction = camera_wall_fraction(control.center.to_array(), desired.to_array(), 114.0);
     let position = control.center.lerp(desired, fraction);
     let (transform, projection) = &mut *camera_transform;
     **transform = Transform::from_translation(position).looking_at(control.center, Vec3::Y);
@@ -564,6 +566,7 @@ fn smoke_test(
     mut camera: ResMut<CameraControl>,
     raid: Res<raid::Raid>,
     combat_validation: Res<raid::CombatValidation>,
+    (plants, pyrite): (Res<plants::Plants>, Res<pyrite::Pyrite>),
 ) {
     *frames += 1;
     if *frames == 3 {
@@ -625,6 +628,7 @@ fn smoke_test(
             model.loaded && model.animated_wheels == 4
         };
         let valid = model_valid
+            && (!combat || !model.converted || pyrite.loaded.iter().all(|n| *n > 0))
             && (!combat
                 || (combat_validation.casts > 0
                     && combat_validation.projection_ok
@@ -634,8 +638,8 @@ fn smoke_test(
                 || (state.paused && config.settings.camera.invert_y == smoke.expected_invert))
             && sim.current.position.x.is_finite()
             && sim.current.position.z.is_finite()
-            && sim.current.position.x.abs() <= 53.5
-            && sim.current.position.z.abs() <= 53.5
+            && sim.current.position.x.abs() <= 105.5
+            && sim.current.position.z.abs() <= 105.5
             && (combat || sim.current.distance > 10.0);
         let fps = diagnostics
             .get(&FrameTimeDiagnosticsPlugin::FPS)
@@ -678,12 +682,15 @@ fn smoke_test(
             raid.0.adds.len()
         );
         let report = format!(
-            "{report}wow_models={}\nwow_scenes_loaded={}\nwow_animation_players={}\nasset_directory={}\nplayer_cooldowns={:?}\n",
+            "{report}wow_models={}\nwow_scenes_loaded={}\nwow_animation_players={}\nasset_directory={}\nplayer_cooldowns={:?}\nplant_scenes_loaded={}\npyrite_ground_scenes_loaded={}\npyrite_air_scenes_loaded={}\n",
             model.converted,
             model.scenes_loaded,
             model.animation_players,
             models::asset_directory().display(),
-            raid.0.player().cooldowns
+            raid.0.cooldowns(),
+            plants.loaded,
+            pyrite.loaded[0],
+            pyrite.loaded[1]
         );
         let _ = std::fs::write(output_directory().join(format!("{stem}.txt")), report);
         exit.write(if valid {

@@ -26,6 +26,7 @@ pub struct ModelStatus {
     pub scene: Option<Handle<WorldAsset>>,
     pub error: String,
     pub converted: bool,
+    pub boss_loaded: bool,
     pub player_loaded: [bool; 3],
     pub scenes_loaded: usize,
     pub animation_players: usize,
@@ -400,6 +401,9 @@ pub fn validate(path: &Path) -> Result<(), String> {
 }
 
 pub fn validate_wow(path: &Path) -> Result<(), String> {
+    validate_wow_clips(path, &["Idle", "Drive"])
+}
+pub fn validate_wow_clips(path: &Path, required: &[&str]) -> Result<(), String> {
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
     let gltf = gltf::Gltf::from_slice(&bytes).map_err(|e| e.to_string())?;
     if gltf.blob.is_none()
@@ -414,9 +418,10 @@ pub fn validate_wow(path: &Path) -> Result<(), String> {
         return Err("Le GLB doit contenir toutes ses textures et donnees.".into());
     }
     let animations: Vec<_> = gltf.animations().filter_map(|a| a.name()).collect();
-    if gltf.skins().count() == 0 || !animations.contains(&"Idle") || !animations.contains(&"Drive")
-    {
-        return Err("Squelette ou animations Idle/Drive absents.".into());
+    if gltf.skins().count() == 0 || !animations.starts_with(required) {
+        return Err(format!(
+            "Squelette ou animations {required:?} absents ou mal ordonnés."
+        ));
     }
     Ok(())
 }
@@ -430,6 +435,15 @@ mod tests {
         for name in ["demolisher", "siege", "moto", "leviathan"] {
             validate_wow(&root.join(format!("wow/{name}.glb"))).unwrap();
         }
+        for name in ["lasher", "ward"] {
+            validate_wow_clips(
+                &root.join(format!("wow/{name}.glb")),
+                &["Idle", "Drive", "Attack"],
+            )
+            .unwrap();
+        }
+        validate_wow_clips(&root.join("wow/pyrite-air.glb"), &["Idle"]).unwrap();
+        validate_wow_clips(&root.join("wow/pyrite-ground.glb"), &[]).unwrap();
     }
 
     #[test]

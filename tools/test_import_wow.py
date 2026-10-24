@@ -50,6 +50,39 @@ def skeletal_files():
 
 
 class ConversionTests(unittest.TestCase):
+    def test_shipped_leviathan_uses_wotlk_display_scale(self):
+        data = (Path(__file__).resolve().parents[1] / 'assets/wow/leviathan.glb').read_bytes()
+        doc = json.loads(data[20:20+struct.unpack_from('<I', data, 12)[0]])
+        self.assertEqual(doc['nodes'][0]['scale'], [3., 3., 3.])
+
+    def test_shipped_pyrite_has_both_textured_models_at_display_scale(self):
+        for name in ['pyrite-air', 'pyrite-ground']:
+            with self.subTest(name=name):
+                path = Path(__file__).resolve().parents[1] / f'assets/wow/{name}.glb'
+                self.assertTrue(path.is_file(), f'Missing WoW pyrite model: {name}')
+                data = path.read_bytes()
+                doc = json.loads(data[20:20+struct.unpack_from('<I', data, 12)[0]])
+                self.assertEqual(doc['nodes'][0]['scale'], [1.5, 1.5, 1.5])
+                self.assertEqual([a['name'] for a in doc['animations']],
+                                 ['Idle'] if name == 'pyrite-air' else [])
+                if name == 'pyrite-air':
+                    self.assertTrue(doc['animations'][0]['channels'])
+                self.assertTrue(doc['images'])
+                self.assertTrue(all('bufferView' in image for image in doc['images']))
+
+    def test_plant_profile_keeps_attack_as_a_third_skeletal_clip(self):
+        files = skeletal_files()
+        data = files['model.M2']
+        struct.pack_into('<II', data, 28, 3, 608)
+        struct.pack_into('<HHIfIhhIII6ffhh', data, 736,
+                         16,0,1000,0.,0x60,0,0,0,0,0,*([0.]*7),-1,0)
+        glb = wow.convert_model(files.__getitem__, 'model.M2', {11: 'neutral.blp'}, 2.,
+                                animations=((0, 'Idle'), (4, 'Drive'), (16, 'Attack')))
+        length = struct.unpack_from('<I', glb, 12)[0]
+        doc = json.loads(glb[20:20+length])
+        self.assertEqual([a['name'] for a in doc['animations']], ['Idle', 'Drive', 'Attack'])
+        self.assertTrue(all(a['channels'] for a in doc['animations']))
+
     @unittest.skipUnless(os.environ.get('WOW_STORMLIB'), 'Set WOW_STORMLIB for local MPQ integration')
     def test_archive_reader_skips_missing_files_and_reads_model(self):
         mpq = wow.Mpq(Path(__file__).resolve().parents[2], Path(os.environ['WOW_STORMLIB']))

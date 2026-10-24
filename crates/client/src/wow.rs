@@ -122,6 +122,7 @@ fn ready(
     children: Query<&Children>,
     mut players: Query<&mut AnimationPlayer>,
     mut status: ResMut<models::ModelStatus>,
+    bosses: Query<(), With<raid::BossBody>>,
 ) {
     let Ok(mut imported) = imports.get_mut(event.entity) else {
         return;
@@ -157,6 +158,9 @@ fn ready(
         }
     } else {
         commands.entity(event.entity).insert(Visibility::Inherited);
+        if bosses.contains(imported.actor) {
+            status.boss_loaded = true;
+        }
     }
     imported.ready = true;
     status.scenes_loaded += 1;

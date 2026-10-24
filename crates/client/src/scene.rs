@@ -514,7 +514,7 @@ impl<'a, 'w, 's> Art<'a, 'w, 's> {
         self.block(wall, 0xa9bfdc, [x, 18.56, 0.6], [14.7, 0.1, 3.3]);
     }
     fn courtyard(&mut self) {
-        let root = self.group(None, Transform::default());
+        let root = self.group(None, Transform::from_scale(Vec3::new(1.93, 1., 1.93)));
         for (x, z, angle) in [
             (-60.0, 0.0, FRAC_PI_2),
             (60.0, 0.0, -FRAC_PI_2),
@@ -588,7 +588,7 @@ pub fn setup(
         ..default()
     });
     commands.spawn((
-        Mesh3d(meshes.add(Plane3d::default().mesh().size(122.0, 122.0))),
+        Mesh3d(meshes.add(Plane3d::default().mesh().size(236.0, 236.0))),
         MeshMaterial3d(floor),
         Transform::from_xyz(0.0, -0.03, 0.0),
         Name::new("Pavage de la cour"),

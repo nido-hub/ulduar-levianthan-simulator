@@ -26,8 +26,8 @@ pub struct Arena {
 impl Default for Arena {
     fn default() -> Self {
         Self {
-            half_width: 56.0,
-            half_depth: 56.0,
+            half_width: 108.0,
+            half_depth: 108.0,
             vehicle_radius: 2.5,
         }
     }
@@ -46,7 +46,7 @@ pub struct DriveConfig {
 impl Default for DriveConfig {
     fn default() -> Self {
         Self {
-            speed: 9.0,
+            speed: 7.0,
             reverse_factor: 0.55,
             strafe_factor: 0.8,
             turn_rate: 2.5,
@@ -334,7 +334,7 @@ mod tests {
                 FIXED_DT,
             );
         }
-        assert!(v.velocity.z > 4.0 && v.velocity.length() <= cfg.speed * cfg.reverse_factor + 0.01);
+        assert!(v.velocity.z > 3.8 && v.velocity.length() <= cfg.speed * cfg.reverse_factor + 0.01);
     }
     #[test]
     fn right_mouse_and_rotation_never_generate_strafe() {
@@ -367,7 +367,7 @@ mod tests {
             },
             1.0,
         );
-        assert!((v.position.z - 25.0).abs() < 0.01 && v.position.x.abs() < 0.001);
+        assert!((v.position.z - 27.0).abs() < 0.01 && v.position.x.abs() < 0.001);
     }
     #[test]
     fn reverse_is_slower() {
@@ -380,7 +380,7 @@ mod tests {
             },
             1.0,
         );
-        assert!((v.position.z - 38.95).abs() < 0.01);
+        assert!((v.position.z - 37.85).abs() < 0.01);
     }
     #[test]
     fn turning_in_place_does_not_slide() {
@@ -408,7 +408,7 @@ mod tests {
             },
             1.0,
         );
-        assert!(v.position.x > 7.0 && v.heading == 0.0 && v.position.z == 34.0);
+        assert!((v.position.x - 5.6).abs() < 0.01 && v.heading == 0.0 && v.position.z == 34.0);
     }
     #[test]
     fn diagonal_does_not_gain_speed() {
@@ -423,7 +423,7 @@ mod tests {
             Arena::default(),
             FIXED_DT,
         );
-        assert!(v.velocity.length() <= 9.001);
+        assert!(v.velocity.length() <= 7.001);
     }
     #[test]
     fn direct_mode_stops_immediately() {
@@ -457,7 +457,7 @@ mod tests {
             },
             1.0,
         );
-        assert!(v.position.x > 8.9 && (v.position.z - 34.0).abs() < 0.001);
+        assert!((v.position.x - 7.0).abs() < 0.01 && (v.position.z - 34.0).abs() < 0.001);
     }
     #[test]
     fn bounds_hold_for_every_corner() {
@@ -465,8 +465,8 @@ mod tests {
             for z in [-1.0, 1.0] {
                 let mut v = Vehicle {
                     position: Point {
-                        x: x * 53.5,
-                        z: z * 53.5,
+                        x: x * 105.5,
+                        z: z * 105.5,
                     },
                     ..Default::default()
                 };
@@ -479,14 +479,14 @@ mod tests {
                     },
                     5.0,
                 );
-                assert!(v.position.x.abs() <= 53.5 && v.position.z.abs() <= 53.5);
+                assert!(v.position.x.abs() <= 105.5 && v.position.z.abs() <= 105.5);
             }
         }
     }
     #[test]
     fn wall_collision_allows_sliding() {
         let mut v = Vehicle {
-            position: Point { x: 53.5, z: 0.0 },
+            position: Point { x: 105.5, z: 0.0 },
             ..Default::default()
         };
         drive(
@@ -498,8 +498,8 @@ mod tests {
             },
             1.0,
         );
-        assert_eq!(v.position.x, 53.5);
-        assert!(v.position.z < -5.0 && v.touching_wall);
+        assert_eq!(v.position.x, 105.5);
+        assert!(v.position.z < -4.5 && v.touching_wall);
     }
     #[test]
     fn frame_rate_independent_forward() {

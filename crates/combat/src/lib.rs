@@ -1,4 +1,5 @@
-//! Headless raid prototype. Values are normalized for training, not certified 3.3.5 data.
+//! Headless Flame Leviathan encounter. Reference and training exceptions: docs/wotlk-reference.md.
+pub mod data;
 use leviathan_driving::{Point, Vehicle};
 use std::f32::consts::TAU;
 
@@ -7,8 +8,8 @@ pub fn distance(a: Point, b: Point) -> f32 {
 }
 fn bounded(p: Point) -> Point {
     Point {
-        x: p.x.clamp(-51.0, 51.0),
-        z: p.z.clamp(-51.0, 51.0),
+        x: p.x.clamp(-data::EDGE, data::EDGE),
+        z: p.z.clamp(-data::EDGE, data::EDGE),
     }
 }
 fn toward(a: Point, b: Point, step: f32) -> Point {
@@ -27,6 +28,14 @@ pub enum Kind {
     Demo,
     Siege,
     Moto,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum School {
+    Physical,
+    Fire,
+    Frost,
+    Nature,
+    Arcane,
 }
 impl Kind {
     pub fn name(self) -> &'static str {
@@ -82,6 +91,7 @@ pub struct Spell {
     pub cost: f32,
     pub cooldown: f32,
     pub radius: f32,
+    pub gcd: f32,
 }
 const fn spell(
     name: &'static str,
@@ -100,47 +110,71 @@ const fn spell(
         cost,
         cooldown,
         radius,
+        gcd: 1.,
     }
 }
 pub fn spells(role: Role) -> Vec<Spell> {
-    match role {
+    let mut bar = match role {
         Role::DemoDriver => vec![
-            spell("Rocher", true, 8., 70., 0., 1.5, 4.),
-            spell("Pyrite", true, 8., 70., 5., 1., 3.),
-            spell("Bélier", false, 0., 9., 0., 4., 3.),
-            spell("Projeter passager", true, 8., 70., 0., 2., 4.),
+            spell("Rocher", true, 10., 70., 0., 0., 20.),
+            spell("Pyrite", true, 10., 70., 5., 0., 20.),
+            spell("Bélier", false, 0., 18., 0., 4., 18.),
+            spell("Projeter passager", true, 10., 70., 0., 2., 10.),
         ],
         Role::DemoPassenger => vec![
-            spell("Mortier", true, 0., 50., 0., 1.5, 4.),
-            spell("Roquette anti-air", true, 0., 60., 0., 1., 3.),
-            spell("Saisir une caisse", true, 0., 25., 0., 2., 3.),
-            spell("Accélération", false, 0., 0., 25., 20., 0.),
+            spell("Mortier", true, 0., 50., 0., 1., 11.),
+            spell("Roquette anti-air", true, 0., 100., 0., 0.25, 3.),
+            spell("Saisir une caisse", true, 0., 40., 0., 0., 3.),
+            spell("Accélération", false, 0., 0., 25., 0., 0.),
             spell("Charger catapulte", false, 0., 0., 0., 30., 0.),
         ],
         Role::SiegeDriver => vec![
-            spell("Bélier", false, 0., 9., 15., 2., 3.),
-            spell("Électrochoc", false, 0., 18., 30., 10., 3.),
-            spell("Ruée vapeur", false, 0., 0., 20., 15., 0.),
+            spell("Bélier", false, 0., 18., 40., 0., 18.),
+            spell("Électrochoc", false, 0., 25., 38., 10., 25.),
+            spell("Ruée vapeur", false, 0., 0., 40., 15., 35.),
         ],
         Role::SiegeGunner => vec![
-            spell("Roquette anti-air", true, 0., 60., 10., 1., 3.),
-            spell("Canon", true, 0., 50., 20., 2., 4.),
-            spell("Bouclier", false, 0., 0., 0., 30., 0.),
+            spell("Roquette anti-air", true, 0., 100., 10., 0.25, 3.),
+            spell("Canon", true, 10., 70., 20., 0., 20.),
+            spell("Bouclier", false, 0., 0., 0., 60., 0.),
         ],
         Role::Moto => vec![
-            spell("Cor sonore", false, 0., 18., 20., 2., 4.),
-            spell("Goudron", false, 0., 0., 0., 15., 7.),
-            spell("Accélération", false, 0., 0., 50., 15., 0.),
+            spell("Cor sonore", false, 0., 35., 20., 0., 35.),
+            spell("Goudron", false, 0., 0., 0., 15., 9.),
+            spell("Accélération", false, 0., 0., 50., 0., 0.),
             spell("Secours / déposer", false, 0., 7., 0., 0.5, 0.),
-            spell("Premiers soins", false, 0., 0., 0., 15., 0.),
+            spell("Premiers soins", false, 0., 0., 0., 60., 0.),
         ],
+    };
+    match role {
+        Role::DemoDriver => bar[2].gcd = 1.5,
+        Role::DemoPassenger => {
+            bar[0].gcd = 0.;
+            bar[1].gcd = 0.;
+        }
+        Role::SiegeDriver => {
+            for s in &mut bar {
+                s.gcd = 1.5;
+            }
+            bar[2].gcd = 2.;
+        }
+        Role::SiegeGunner => {
+            bar[0].gcd = 0.;
+            bar[2].gcd = 1.5;
+        }
+        Role::Moto => {
+            bar[3].gcd = 0.;
+            bar[4].gcd = 0.;
+        }
     }
+    bar
 }
 #[derive(Clone, Debug)]
 pub struct CrewVehicle {
     pub kind: Kind,
     pub body: Vehicle,
     pub hp: f32,
+    pub max_hp: f32,
     pub energy: f32,
     pub gun_energy: f32,
     pub pyrite: f32,
@@ -155,6 +189,18 @@ pub struct CrewVehicle {
     pub loaded: bool,
     pub cargo: Option<u64>,
     pub ai_status: &'static str,
+    pub gcd: [f32; 2],
+    pub vulnerability: u8,
+    pub vulnerability_time: f32,
+    pub napalm: f32,
+    pub healing: f32,
+    pub dot_clock: f32,
+    pub passenger_hp: f32,
+}
+impl CrewVehicle {
+    pub fn speed_multiplier(&self) -> f32 {
+        if self.boost > 0. { 2. } else { 1. }
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ShotKind {
@@ -164,6 +210,15 @@ pub enum ShotKind {
     Cannon,
     Rocket,
     Passenger,
+}
+fn shot_damage(kind: ShotKind) -> (f32, School) {
+    match kind {
+        ShotKind::Boulder => (31_000., School::Fire),
+        ShotKind::Pyrite => (60_000., School::Arcane),
+        ShotKind::Mortar => (32_000., School::Fire),
+        ShotKind::Cannon => (80_000., School::Physical),
+        _ => (0., School::Physical),
+    }
 }
 #[derive(Clone, Debug)]
 pub struct Shot {
@@ -202,6 +257,19 @@ pub struct Hazard {
     pub burning: bool,
     pub target: usize,
 }
+impl Hazard {
+    pub fn strike_at(&self) -> f32 {
+        match self.kind {
+            HazardKind::Storm => self.duration - 5.,
+            HazardKind::Frost => 5.,
+            HazardKind::Fire => 0.8,
+            HazardKind::Tar => 0.,
+        }
+    }
+    pub fn striking(&self) -> bool {
+        self.age >= self.strike_at()
+    }
+}
 #[derive(Clone, Debug)]
 pub struct Crate {
     pub id: u64,
@@ -214,6 +282,8 @@ pub struct Add {
     pub id: u64,
     pub position: Point,
     pub hp: f32,
+    pub ward: bool,
+    pub attack: f32,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RiderState {
@@ -234,6 +304,7 @@ pub struct Rider {
 pub struct Boss {
     pub position: Point,
     pub hp: f32,
+    pub max_hp: f32,
     pub target: usize,
     pub pursuit: f32,
     pub cast: f32,
@@ -242,6 +313,8 @@ pub struct Boss {
     pub turret_timer: f32,
     pub missile: f32,
     pub travelled: f32,
+    pub speed_stacks: u8,
+    pub turrets: [f32; 2],
 }
 #[derive(Clone, Debug, Default)]
 pub struct Stats {
@@ -285,6 +358,16 @@ pub struct Fight {
     frost_timer: f32,
     life_timer: f32,
     launch_timer: f32,
+    speed_timer: f32,
+    ram_timer: f32,
+    vents_tick: f32,
+    napalm_timer: f32,
+    napalm_cast: f32,
+    napalm_target: usize,
+    turret_attack: bool,
+    turret_clock: f32,
+    eject_timer: f32,
+    fire_position: Point,
 }
 impl Fight {
     pub fn new(role: Role, towers: bool) -> Self {
@@ -303,7 +386,8 @@ impl Fight {
                 position: Point { x, z },
                 ..Default::default()
             },
-            hp: 100.,
+            hp: data::vehicle_hp(kind),
+            max_hp: data::vehicle_hp(kind),
             energy: 100.,
             gun_energy: 100.,
             pyrite: 100.,
@@ -318,6 +402,13 @@ impl Fight {
             loaded: false,
             cargo: None,
             ai_status: "Prêt",
+            gcd: [0.; 2],
+            vulnerability: 0,
+            vulnerability_time: 0.,
+            napalm: 0.,
+            healing: 0.,
+            dot_clock: 0.,
+            passenger_hp: data::RIDER_HP,
         })
         .collect();
         Self {
@@ -325,15 +416,18 @@ impl Fight {
             vehicles,
             boss: Boss {
                 position: Point { x: 0., z: -17. },
-                hp: 1000.,
+                hp: data::boss_hp(towers),
+                max_hp: data::boss_hp(towers),
                 target: 2,
                 pursuit: 0.,
                 cast: 0.,
-                vents: 12.,
+                vents: 20.,
                 shutdown: 0.,
                 turret_timer: 0.,
                 missile: 5.,
                 travelled: 0.,
+                speed_stacks: 0,
+                turrets: [data::TURRET_HP; 2],
             },
             shots: vec![],
             impacts: vec![],
@@ -348,12 +442,25 @@ impl Fight {
             stats: Stats::default(),
             next_id: 1,
             crate_timer: 1.,
-            storm_timer: 8.,
-            fire_timer: 15.,
+            storm_timer: 60.,
+            fire_timer: 42.,
             fire_phase: 0,
-            frost_timer: 24.,
-            life_timer: 30.,
+            frost_timer: 20.,
+            life_timer: 34.,
             launch_timer: 48.,
+            speed_timer: 15.,
+            ram_timer: 0.,
+            vents_tick: 0.,
+            napalm_timer: 12.,
+            napalm_cast: 0.,
+            napalm_target: 0,
+            turret_attack: false,
+            turret_clock: 0.,
+            eject_timer: 0.,
+            fire_position: Point {
+                x: data::FIRE_PATH[0].0,
+                z: data::FIRE_PATH[0].1,
+            },
         }
     }
     fn id(&mut self) -> u64 {
@@ -381,6 +488,8 @@ impl Fight {
     }
     pub fn start(&mut self) {
         if self.outcome == Outcome::Ready {
+            self.boss.max_hp = data::boss_hp(self.towers);
+            self.boss.hp = self.boss.max_hp;
             self.outcome = Outcome::Fighting;
             self.say("Pull : le Léviathan s'active.");
         }
@@ -393,8 +502,94 @@ impl Fight {
             _ => v.energy,
         }
     }
+    pub fn set_towers(&mut self, towers: bool) {
+        if self.outcome == Outcome::Ready {
+            self.towers = towers;
+            self.boss.max_hp = data::boss_hp(towers);
+            self.boss.hp = self.boss.max_hp;
+        }
+    }
+    pub fn cooldowns(&self) -> [f32; 5] {
+        let mut remaining = if self.role.drives() {
+            self.player().cooldowns
+        } else {
+            self.player().ai_cd
+        };
+        let gcd = self.player().gcd[usize::from(!self.role.drives())];
+        for (slot, spell) in spells(self.role).iter().enumerate() {
+            if spell.gcd > 0. {
+                remaining[slot] = remaining[slot].max(gcd);
+            }
+        }
+        remaining
+    }
     pub fn onboard(&self) -> bool {
         self.role != Role::DemoPassenger || self.player().passenger
+    }
+    pub fn player_rider(&self) -> Option<&Rider> {
+        if self.role != Role::DemoPassenger {
+            return None;
+        }
+        self.riders.iter().find(|r| r.home == self.role.index())
+    }
+    pub fn player_position(&self) -> Point {
+        if let Some(r) = self.player_rider() {
+            return r.position;
+        }
+        if self.role == Role::DemoPassenger
+            && let Some(s) = self
+                .shots
+                .iter()
+                .find(|s| s.owner == self.role.index() && s.kind == ShotKind::Passenger)
+        {
+            let t = (s.age / s.flight).clamp(0., 1.);
+            return Point {
+                x: s.start.x + (s.end.x - s.start.x) * t,
+                z: s.start.z + (s.end.z - s.start.z) * t,
+            };
+        }
+        self.player().body.position
+    }
+    pub fn health_fraction(&self) -> f32 {
+        if self.role == Role::DemoPassenger
+            && !self.player().passenger
+            && self
+                .shots
+                .iter()
+                .any(|s| s.owner == self.role.index() && s.kind == ShotKind::Passenger)
+        {
+            return (self.player().passenger_hp / data::RIDER_HP).clamp(0., 1.);
+        }
+        self.player_rider()
+            .map_or(self.player().hp / self.player().max_hp, |r| {
+                r.hp / data::RIDER_HP
+            })
+            .clamp(0., 1.)
+    }
+    pub fn active_spells(&self) -> Vec<Spell> {
+        if let Some(r) = self.player_rider() {
+            return if r.state == RiderState::Turret && r.hp > 0. {
+                vec![spell("Attaquer les tourelles", false, 0., 0., 0., 0., 0.)]
+            } else {
+                vec![]
+            };
+        }
+        if self.role == Role::DemoPassenger && (!self.onboard() || self.player().loaded) {
+            return vec![];
+        }
+        spells(self.role)
+    }
+    pub fn attacking_turrets(&self) -> bool {
+        self.turret_attack
+    }
+    pub fn player_can_move(&self) -> bool {
+        if !matches!(self.outcome, Outcome::Ready | Outcome::Fighting) {
+            return false;
+        }
+        if let Some(r) = self.player_rider() {
+            return r.state == RiderState::Ground && r.hp > 0.;
+        }
+        self.role.drives() && self.onboard() && self.player().hp > 0. && self.player().frozen <= 0.
     }
     pub fn aim_valid(&self, index: usize, point: Point) -> bool {
         let Some(spell) = spells(self.role).get(index).copied() else {
@@ -403,37 +598,80 @@ impl Fight {
         let d = distance(self.player().body.position, point);
         point.x.is_finite()
             && point.z.is_finite()
-            && point.x.abs() <= 55.
-            && point.z.abs() <= 55.
+            && point.x.abs() <= data::ARENA_HALF
+            && point.z.abs() <= data::ARENA_HALF
             && d >= spell.min
             && d <= spell.max
     }
     pub fn cast(&mut self, index: usize, aim: Option<Point>) -> Result<(), &'static str> {
+        if let Some(r) = self.player_rider() {
+            if self.outcome == Outcome::Fighting
+                && r.state == RiderState::Turret
+                && r.hp > 0.
+                && index == 0
+                && aim.is_none()
+            {
+                self.turret_attack = true;
+                self.say("Attaque des tourelles : surcharge après leur destruction.");
+                return Ok(());
+            }
+            return Err("Passager hors véhicule : aucune compétence de véhicule disponible.");
+        }
+        self.cast_for(self.role.index(), self.role, index, aim, true)
+    }
+    fn cast_for(
+        &mut self,
+        owner: usize,
+        role: Role,
+        index: usize,
+        aim: Option<Point>,
+        personal: bool,
+    ) -> Result<(), &'static str> {
         if self.outcome != Outcome::Fighting {
             return Err("Lance le combat avec Entrée.");
         }
-        let Some(spell) = spells(self.role).get(index).copied() else {
+        let Some(spell) = spells(role).get(index).copied() else {
             return Err("Pas de sort sur cette touche.");
         };
-        let owner = self.role.index();
         let v = &self.vehicles[owner];
-        if !self.onboard() {
+        if role == Role::DemoPassenger && (!v.passenger || v.loaded) {
             return Err("Passager hors véhicule : retour par une moto en cours.");
         }
         if v.hp <= 0. || v.frozen > 0. {
             return Err("Véhicule détruit ou gelé.");
         }
-        if v.cooldowns[index] > 0. {
+        let cds = if role.drives() {
+            &v.cooldowns
+        } else {
+            &v.ai_cd
+        };
+        let seat = usize::from(!role.drives());
+        if cds[index] > 0. || (spell.gcd > 0. && v.gcd[seat] > 0.) {
             return Err("Sort en recharge.");
         }
-        if self.resource() < spell.cost {
+        let resource = match role {
+            Role::DemoDriver | Role::DemoPassenger => v.pyrite,
+            Role::SiegeGunner => v.gun_energy,
+            _ => v.energy,
+        };
+        if resource < spell.cost {
             return Err("Ressource insuffisante.");
         }
-        if spell.aimed && !aim.is_some_and(|p| self.aim_valid(index, p)) {
+        if spell.aimed
+            && !aim.is_some_and(|p| {
+                p.x.is_finite()
+                    && p.z.is_finite()
+                    && p.x.abs() <= data::ARENA_HALF
+                    && p.z.abs() <= data::ARENA_HALF
+                    && distance(v.body.position, p) >= spell.min
+                    && distance(v.body.position, p) <= spell.max
+            })
+        {
             return Err("Visée hors portée ou hors de la cour.");
         }
         // Preconditions must be checked before consuming any resource or cooldown.
-        match (self.role, index) {
+        match (role, index) {
+            (Role::DemoPassenger, 3) if v.boost > 0. => return Err("Accélération déjà active."),
             (Role::DemoDriver, 3) if !v.passenger || !v.loaded => {
                 return Err("Le passager doit être chargé dans la catapulte.");
             }
@@ -451,8 +689,8 @@ impl Fight {
             (Role::Moto, 3) => {
                 if let Some(id) = v.cargo {
                     let r = self.riders.iter().find(|r| r.id == id).unwrap();
-                    if self.vehicles[r.home].hp <= 0.
-                        || distance(v.body.position, self.vehicles[r.home].body.position) > 8.
+                    if self.vehicles[r.home].hp > 0.
+                        && distance(v.body.position, self.vehicles[r.home].body.position) > 8.
                     {
                         return Err("Rejoins le démolisseur d'origine avant de déposer.");
                     }
@@ -466,24 +704,32 @@ impl Fight {
             _ => {}
         }
         let v = &mut self.vehicles[owner];
-        v.cooldowns[index] = spell.cooldown;
-        match self.role {
+        if role.drives() {
+            v.cooldowns[index] = spell.cooldown;
+        } else {
+            v.ai_cd[index] = spell.cooldown;
+        }
+        if spell.gcd > 0. {
+            v.gcd[seat] = spell.gcd;
+        }
+        match role {
             Role::DemoDriver | Role::DemoPassenger => v.pyrite -= spell.cost,
             Role::SiegeGunner => v.gun_energy -= spell.cost,
             _ => v.energy -= spell.cost,
         }
-        match (self.role, index) {
-            (Role::DemoDriver, 0) => self.fire(owner, aim.unwrap(), ShotKind::Boulder, true),
-            (Role::DemoDriver, 1) => self.fire(owner, aim.unwrap(), ShotKind::Pyrite, true),
-            (Role::DemoDriver, 2) | (Role::SiegeDriver, 0) => self.frontal(owner, 9., 12.),
+        match (role, index) {
+            (Role::DemoDriver, 0) => self.fire(owner, aim.unwrap(), ShotKind::Boulder, personal),
+            (Role::DemoDriver, 1) => self.fire(owner, aim.unwrap(), ShotKind::Pyrite, personal),
+            (Role::DemoDriver, 2) => self.frontal(owner, 18., 20_000.),
+            (Role::SiegeDriver, 0) => self.frontal(owner, 18., 25_001.),
             (Role::DemoDriver, 3) => {
                 self.vehicles[owner].passenger = false;
                 self.vehicles[owner].loaded = false;
-                self.fire(owner, aim.unwrap(), ShotKind::Passenger, true);
+                self.fire(owner, aim.unwrap(), ShotKind::Passenger, personal);
             }
-            (Role::DemoPassenger, 0) => self.fire(owner, aim.unwrap(), ShotKind::Mortar, true),
+            (Role::DemoPassenger, 0) => self.fire(owner, aim.unwrap(), ShotKind::Mortar, personal),
             (Role::DemoPassenger, 1) | (Role::SiegeGunner, 0) => {
-                self.fire(owner, aim.unwrap(), ShotKind::Rocket, true)
+                self.fire(owner, aim.unwrap(), ShotKind::Rocket, personal)
             }
             (Role::DemoPassenger, 2) => {
                 let point = aim.unwrap();
@@ -497,25 +743,27 @@ impl Fight {
                 }
                 self.vehicles[owner].pyrite = (self.vehicles[owner].pyrite + 25.).min(100.);
             }
-            (Role::DemoPassenger, 3) | (Role::SiegeDriver, 2) | (Role::Moto, 2) => {
-                self.vehicles[owner].boost = 5.
-            }
+            (Role::DemoPassenger, 3) => self.vehicles[owner].boost = 20.,
+            (Role::SiegeDriver, 2) | (Role::Moto, 2) => self.vehicles[owner].boost = 5.,
             (Role::DemoPassenger, 4) => {
                 self.vehicles[owner].loaded = true;
                 self.say("Chargé : le conducteur IA prépare ta projection.");
             }
             (Role::SiegeDriver, 1) => {
-                if self.in_front(owner, self.boss.position, 18.) && self.boss.cast > 0. {
+                if self.in_front(owner, self.boss.position, 25.) && self.boss.cast > 0. {
                     self.boss.cast = 0.;
-                    self.stats.interrupts += 1;
+                    if personal {
+                        self.stats.interrupts += 1;
+                    }
                     self.say("Électrochoc : interruption réussie.");
                 } else {
                     self.say("Électrochoc : pas d'incantation à portée dans le cône.");
                 }
+                self.frontal_school(owner, 25., 8_720., School::Nature);
             }
-            (Role::SiegeGunner, 1) => self.fire(owner, aim.unwrap(), ShotKind::Cannon, true),
+            (Role::SiegeGunner, 1) => self.fire(owner, aim.unwrap(), ShotKind::Cannon, personal),
             (Role::SiegeGunner, 2) => self.vehicles[owner].shield = 5.,
-            (Role::Moto, 0) => self.frontal(owner, 18., 9.),
+            (Role::Moto, 0) => self.frontal(owner, 35., 7_000.),
             (Role::Moto, 1) => {
                 let position = self.vehicles[owner].body.position;
                 let id = self.id();
@@ -523,9 +771,9 @@ impl Fight {
                     id,
                     kind: HazardKind::Tar,
                     position,
-                    radius: 7.,
+                    radius: 9.,
                     age: 0.,
-                    duration: 35.,
+                    duration: 45.,
                     burning: false,
                     target: owner,
                 });
@@ -534,10 +782,7 @@ impl Fight {
                 self.rescue(owner);
             }
             (Role::Moto, 4) => {
-                let id = self.vehicles[owner].cargo.unwrap();
-                if let Some(r) = self.riders.iter_mut().find(|r| r.id == id) {
-                    r.hp = 100.;
-                }
+                self.vehicles[owner].healing = 4.;
             }
             _ => {}
         }
@@ -569,8 +814,12 @@ impl Fight {
             && (d < 0.1 || (dx * v.body.heading.sin() - dz * v.body.heading.cos()) / d > 0.55)
     }
     fn frontal(&mut self, owner: usize, range: f32, damage: f32) {
+        self.frontal_school(owner, range, damage, School::Physical);
+    }
+    fn frontal_school(&mut self, owner: usize, range: f32, damage: f32, school: School) {
+        let damage = damage * data::GEAR_SCALE;
         if self.in_front(owner, self.boss.position, range) {
-            self.damage_boss(damage);
+            self.damage_boss_school(damage, school);
         }
         let hits: Vec<_> = self
             .adds
@@ -580,17 +829,52 @@ impl Fight {
             .collect();
         for a in &mut self.adds {
             if hits.contains(&a.id) {
-                a.hp -= damage * 2.;
+                a.hp -= damage;
             }
         }
     }
     fn damage_boss(&mut self, damage: f32) {
-        self.boss.hp =
-            (self.boss.hp - damage * if self.boss.shutdown > 0. { 1.5 } else { 1. }).max(0.);
+        self.damage_boss_school(damage, School::Arcane);
+    }
+    fn damage_boss_school(&mut self, damage: f32, school: School) {
+        self.boss.hp = (self.boss.hp
+            - damage
+                * if self.boss.shutdown > 0. { 1.5 } else { 1. }
+                * if self.towers && school == School::Fire {
+                    0.9
+                } else {
+                    1.
+                })
+        .max(0.);
     }
     fn harm(&mut self, index: usize, damage: f32, avoidable: bool) {
+        self.harm_school(index, damage, avoidable, School::Physical, true);
+    }
+    fn harm_school(
+        &mut self,
+        index: usize,
+        damage: f32,
+        avoidable: bool,
+        school: School,
+        boss_source: bool,
+    ) {
         let v = &mut self.vehicles[index];
-        let damage = damage * if v.shield > 0. { 0.2 } else { 1. };
+        let damage = damage
+            * (1. + v.vulnerability as f32 * 0.5)
+            * if v.shield > 0. && school != School::Nature {
+                0.85
+            } else {
+                1.
+            }
+            * if self.towers && boss_source {
+                match school {
+                    School::Physical => 1.25,
+                    School::Fire => 1.5,
+                    _ => 1.,
+                }
+            } else {
+                1.
+            };
         let actual = damage.min(v.hp);
         v.hp = (v.hp - damage).max(0.);
         if index == self.role.index() && avoidable {
@@ -599,9 +883,11 @@ impl Fight {
     }
     fn impact(&mut self, shot: Shot) {
         let radius = match shot.kind {
-            ShotKind::Pyrite => 3.,
+            ShotKind::Pyrite => 20.,
             ShotKind::Rocket => 3.,
-            _ => 4.,
+            ShotKind::Mortar => 11.,
+            ShotKind::Passenger => 10.,
+            _ => 20.,
         };
         let boss_hit = distance(shot.end, self.boss.position) < radius + 4.5;
         if shot.kind == ShotKind::Passenger {
@@ -615,7 +901,7 @@ impl Fight {
                 } else {
                     RiderState::Ground
                 },
-                hp: 70.,
+                hp: self.vehicles[shot.owner].passenger_hp,
             });
             self.say(if boss_hit {
                 "Passager sur les tourelles."
@@ -635,11 +921,8 @@ impl Fight {
         } else {
             if boss_hit {
                 hit = true;
-                self.damage_boss(match shot.kind {
-                    ShotKind::Pyrite => 3.,
-                    ShotKind::Boulder => 5.,
-                    _ => 6.,
-                });
+                let (raw, school) = shot_damage(shot.kind);
+                self.damage_boss_school(raw * data::GEAR_SCALE, school);
                 if shot.kind == ShotKind::Pyrite {
                     let v = &mut self.vehicles[shot.owner];
                     v.stacks = (v.stacks + 1).min(10);
@@ -648,7 +931,7 @@ impl Fight {
             }
             for a in &mut self.adds {
                 if distance(a.position, shot.end) < radius + 1. {
-                    a.hp -= 20.;
+                    a.hp -= shot_damage(shot.kind).0 * data::GEAR_SCALE;
                     hit = true;
                 }
             }
@@ -691,16 +974,23 @@ impl Fight {
             let Some(r) = self.riders.iter().find(|r| r.id == id) else {
                 return false;
             };
+            if r.hp <= 0. || r.state == RiderState::Lost {
+                self.vehicles[moto].cargo = None;
+                return false;
+            }
             let home = r.home;
             if self.vehicles[home].hp <= 0. {
                 self.vehicles[moto].cargo = None;
                 if let Some(r) = self.riders.iter_mut().find(|r| r.id == id) {
-                    r.state = RiderState::Lost;
+                    r.state = RiderState::Ground;
+                    r.position = position;
                 }
-                return false;
+                self.say("Démolisseur détruit : passager déposé au sol.");
+                return true;
             }
             if distance(position, self.vehicles[home].body.position) < 8. {
                 self.vehicles[home].passenger = true;
+                self.vehicles[home].passenger_hp = r.hp;
                 self.vehicles[moto].cargo = None;
                 self.riders.retain(|r| r.id != id);
                 if moto == self.role.index() {
@@ -709,11 +999,9 @@ impl Fight {
                 self.say("Passager ramené à son démolisseur.");
                 return true;
             }
-        } else if let Some(r) = self
-            .riders
-            .iter_mut()
-            .find(|r| r.state == RiderState::Ground && distance(r.position, position) < 7.)
-        {
+        } else if let Some(r) = self.riders.iter_mut().find(|r| {
+            r.state == RiderState::Ground && r.hp > 0. && distance(r.position, position) < 7.
+        }) {
             r.state = RiderState::Carried;
             self.vehicles[moto].cargo = Some(r.id);
             return true;
@@ -727,6 +1015,16 @@ impl Fight {
         let v = self.vehicles[index].clone();
         let is_player = index == self.role.index();
         let driver = !is_player || !self.role.drives();
+        if v.kind == Kind::Demo
+            && (!is_player || self.role != Role::DemoPassenger)
+            && v.passenger
+            && !v.loaded
+            && self.boss.target == index
+            && self.boss.shutdown <= 0.
+            && v.boost <= 0.
+        {
+            let _ = self.cast_for(index, Role::DemoPassenger, 3, None, false);
+        }
         if driver {
             self.vehicles[index].body.velocity = Point::default();
             let mut goal;
@@ -748,7 +1046,12 @@ impl Fight {
                     goal = self
                         .riders
                         .iter()
-                        .filter(|r| r.state == RiderState::Ground && !reserved.contains(&r.id))
+                        .filter(|r| {
+                            r.state == RiderState::Ground
+                                && r.hp > 0.
+                                && self.vehicles[r.home].hp > 0.
+                                && !reserved.contains(&r.id)
+                        })
                         .min_by(|a, b| {
                             distance(a.position, v.body.position)
                                 .total_cmp(&distance(b.position, v.body.position))
@@ -765,19 +1068,17 @@ impl Fight {
                     x: 46. * angle.cos(),
                     z: 46. * angle.sin(),
                 };
-                if distance(v.body.position, self.boss.position) < 22.
-                    && v.ai_cd[4] <= 0.
-                    && v.energy >= 20.
+                if v.kind == Kind::Siege
+                    && distance(v.body.position, self.boss.position) < 30.
+                    && v.boost <= 0.
                 {
-                    self.vehicles[index].boost = 5.;
-                    self.vehicles[index].ai_cd[4] = 15.;
-                    self.vehicles[index].energy -= 20.;
+                    let _ = self.cast_for(index, Role::SiegeDriver, 2, None, false);
                 }
             } else {
                 let radius = if v.kind == Kind::Demo { 32. } else { 14. };
                 let base = (v.body.position.z - self.boss.position.z)
                     .atan2(v.body.position.x - self.boss.position.x);
-                goal = Point { x: 0., z: 0. };
+                goal = v.body.position;
                 let mut best = f32::INFINITY;
                 for step in 0..24 {
                     let a = base + step as f32 * TAU / 24.;
@@ -785,7 +1086,7 @@ impl Fight {
                         x: self.boss.position.x + radius * a.cos(),
                         z: self.boss.position.z + radius * a.sin(),
                     };
-                    if p.x.abs() > 50. || p.z.abs() > 50. {
+                    if p.x.abs() > data::EDGE || p.z.abs() > data::EDGE {
                         continue;
                     }
                     let d = distance(p, v.body.position);
@@ -821,11 +1122,7 @@ impl Fight {
                     }
                 }
             }
-            let speed = match v.kind {
-                Kind::Demo => 9.,
-                Kind::Siege => 10.,
-                Kind::Moto => 14.,
-            } * if v.boost > 0. { 1.7 } else { 1. };
+            let speed = data::BASE_SPEED * self.vehicles[index].speed_multiplier();
             let stop = if v.kind == Kind::Moto { 3. } else { 1.5 };
             let old = v.body.position;
             if distance(old, goal) > stop {
@@ -849,7 +1146,16 @@ impl Fight {
                 "Placement"
             };
             if v.kind == Kind::Moto {
-                self.rescue(index);
+                if v.cargo.is_some()
+                    || self.riders.iter().any(|r| {
+                        r.state == RiderState::Ground
+                            && r.hp > 0.
+                            && self.vehicles[r.home].hp > 0.
+                            && distance(r.position, self.vehicles[index].body.position) < 7.
+                    })
+                {
+                    self.rescue(index);
+                }
             }
         }
         let pos = self.vehicles[index].body.position;
@@ -857,74 +1163,142 @@ impl Fight {
         // Driver and passenger automation are independent; never fire the player's spells.
         if v.kind == Kind::Demo {
             let ai_passenger = !is_player || self.role != Role::DemoPassenger;
-            if ai_passenger && v.passenger && v.pyrite <= 75. && v.ai_cd[2] <= 0. {
+            if ai_passenger && v.passenger && !v.loaded && v.pyrite <= 75. {
                 if let Some(c) = self
                     .crates
                     .iter()
-                    .find(|c| c.air <= 0. && distance(c.position, pos) < 25.)
-                    .map(|c| c.id)
+                    .find(|c| c.air <= 0. && distance(c.position, pos) < 40.)
+                    .map(|c| c.position)
                 {
-                    self.crates.retain(|a| a.id != c);
-                    self.vehicles[index].pyrite = (v.pyrite + 25.).min(100.);
-                    self.vehicles[index].ai_cd[2] = 3.;
+                    let _ = self.cast_for(index, Role::DemoPassenger, 2, Some(c), false);
                 }
             }
-            if ai_passenger && v.passenger && self.time > 35. {
-                self.vehicles[index].loaded = true;
+            if ai_passenger && v.passenger && !v.loaded && self.launch_timer < 4. {
+                let _ = self.cast_for(index, Role::DemoPassenger, 4, None, false);
             }
-            if driver && v.ai_cd[0] <= 0. && d < 68. && d > 8. {
-                let kind = if v.pyrite >= 5. && (v.stacks < 10 || v.stack_time < 3.) {
-                    self.vehicles[index].pyrite -= 5.;
-                    ShotKind::Pyrite
-                } else {
-                    ShotKind::Boulder
-                };
-                self.fire(index, self.boss.position, kind, false);
-                self.vehicles[index].ai_cd[0] = 1.6;
-            }
-            if is_player
-                && self.role == Role::DemoPassenger
+            if driver
                 && v.loaded
                 && v.passenger
-                && v.ai_cd[3] <= 0.
                 && d < 65.
+                && self.boss.shutdown <= 0.
+                && (self.launch_timer <= 0.1 || (is_player && self.role == Role::DemoPassenger))
             {
-                self.vehicles[index].passenger = false;
-                self.vehicles[index].loaded = false;
-                self.vehicles[index].ai_cd[3] = 35.;
-                self.fire(index, self.boss.position, ShotKind::Passenger, false);
+                let _ = self.cast_for(index, Role::DemoDriver, 3, Some(self.boss.position), false);
+            }
+            if driver && d < 70. && d >= 10. {
+                let slot = if v.pyrite >= 5. && (v.stacks < 10 || v.stack_time < 3.) {
+                    1
+                } else {
+                    0
+                };
+                let _ = self.cast_for(
+                    index,
+                    Role::DemoDriver,
+                    slot,
+                    Some(self.boss.position),
+                    false,
+                );
+            }
+            if ai_passenger && v.passenger && !v.loaded {
+                let airborne = self
+                    .crates
+                    .iter()
+                    .find(|c| c.air > 0. && distance(c.position, pos) < 100.)
+                    .map(|c| c.position);
+                if let Some(point) = airborne {
+                    let _ = self.cast_for(index, Role::DemoPassenger, 1, Some(point), false);
+                }
+                let target = self
+                    .vehicles
+                    .iter()
+                    .filter(|a| a.hp > 0. && a.frozen > 0. && distance(a.body.position, pos) < 50.)
+                    .map(|a| a.body.position)
+                    .next()
+                    .unwrap_or(self.boss.position);
+                if distance(pos, target) < 50. {
+                    let _ = self.cast_for(index, Role::DemoPassenger, 0, Some(target), false);
+                }
             }
         } else if v.kind == Kind::Siege {
             if driver
                 && self.boss.cast > 0.
-                && self.boss.cast < 1.6
-                && d < 18.
-                && v.ai_cd[1] <= 0.
-                && v.energy >= 30.
+                && d < 25.
+                && self.in_front(index, self.boss.position, 25.)
             {
-                self.boss.cast = 0.;
-                self.vehicles[index].energy -= 30.;
-                self.vehicles[index].ai_cd[1] = 10.;
-                self.say("Électrochoc allié : interruption.");
+                let _ = self.cast_for(index, Role::SiegeDriver, 1, None, false);
             }
-            if (!is_player || self.role != Role::SiegeGunner) && v.ai_cd[0] <= 0. && d < 48. {
-                self.fire(index, self.boss.position, ShotKind::Cannon, false);
-                self.vehicles[index].ai_cd[0] = 3.;
+            if !is_player || self.role != Role::SiegeGunner {
+                let _ = self.cast_for(index, Role::SiegeGunner, 1, Some(self.boss.position), false);
             }
-        } else if v.ai_cd[0] <= 0. {
-            if let Some(add) = self
+        } else if driver {
+            if distance(pos, self.boss.position) < 24. {
+                let _ = self.cast_for(index, Role::Moto, 1, None, false);
+            }
+            if self
                 .adds
-                .iter_mut()
-                .find(|a| distance(a.position, pos) < 18.)
+                .iter()
+                .any(|a| self.in_front(index, a.position, 35.))
             {
-                add.hp -= 10.;
+                let _ = self.cast_for(index, Role::Moto, 0, None, false);
             }
-            if let Some(id) = v.cargo
+            if v.cargo.is_some() {
+                let _ = self.cast_for(index, Role::Moto, 4, None, false);
+            }
+        }
+    }
+    fn release_destroyed_carriers(&mut self) {
+        for v in &mut self.vehicles {
+            if v.hp <= 0.
+                && let Some(id) = v.cargo.take()
                 && let Some(r) = self.riders.iter_mut().find(|r| r.id == id)
             {
-                r.hp = (r.hp + 25.).min(100.);
+                r.position = v.body.position;
+                r.state = if r.hp > 0. {
+                    RiderState::Ground
+                } else {
+                    RiderState::Lost
+                };
             }
-            self.vehicles[index].ai_cd[0] = 3.;
+        }
+    }
+    fn harm_exposed_riders(&mut self, dt: f32, vents_pulse: bool) {
+        for r in &mut self.riders {
+            if !matches!(r.state, RiderState::Ground | RiderState::Carried) || r.hp <= 0. {
+                continue;
+            }
+            let mut damage = 0.;
+            if vents_pulse && distance(r.position, self.boss.position) <= 50. {
+                damage += 3_000. * if self.towers { 1.5 } else { 1. };
+            }
+            if self.hazards.iter().any(|h| {
+                h.kind == HazardKind::Fire
+                    && h.striking()
+                    && distance(h.position, r.position) <= h.radius
+            }) {
+                damage += data::RIDER_HP * 0.10 * dt;
+            }
+            for h in &self.hazards {
+                if h.kind == HazardKind::Tar || h.age < h.strike_at() || h.age - dt >= h.strike_at()
+                {
+                    continue;
+                }
+                let d = distance(h.position, r.position);
+                match h.kind {
+                    HazardKind::Storm => {
+                        damage += if d <= 7. {
+                            300_000.
+                        } else {
+                            300_000. / (d - 6.).max(1.)
+                        }
+                    }
+                    HazardKind::Fire | HazardKind::Frost if d <= h.radius => damage += 150_000.,
+                    _ => {}
+                }
+            }
+            r.hp = (r.hp - damage).max(0.);
+            if r.hp == 0. {
+                r.state = RiderState::Lost;
+            }
         }
     }
     pub fn tick(&mut self, dt: f32) {
@@ -932,14 +1306,25 @@ impl Fight {
             return;
         }
         self.time += dt;
+        self.release_destroyed_carriers();
+        let mut vents_pulse = false;
         for v in &mut self.vehicles {
-            for cd in v.cooldowns.iter_mut().chain(v.ai_cd.iter_mut()) {
+            for cd in v
+                .cooldowns
+                .iter_mut()
+                .chain(v.ai_cd.iter_mut())
+                .chain(v.gcd.iter_mut())
+            {
                 *cd = (*cd - dt).max(0.);
             }
             v.energy = (v.energy + 10. * dt).min(100.);
             v.gun_energy = (v.gun_energy + 10. * dt).min(100.);
             for timer in [&mut v.boost, &mut v.shield, &mut v.frozen] {
                 *timer = (*timer - dt).max(0.);
+            }
+            v.vulnerability_time = (v.vulnerability_time - dt).max(0.);
+            if v.vulnerability_time == 0. {
+                v.vulnerability = 0;
             }
         }
         for i in 0..6 {
@@ -948,7 +1333,7 @@ impl Fight {
         for i in 0..6 {
             let stacks = self.vehicles[i].stacks;
             if stacks > 0 {
-                self.damage_boss(stacks as f32 * 0.55 * dt);
+                self.damage_boss(stacks as f32 * data::PYRITE_TICK * data::GEAR_SCALE * dt);
                 self.vehicles[i].stack_time -= dt;
                 if self.vehicles[i].stack_time <= 0. {
                     self.vehicles[i].stacks = 0;
@@ -963,8 +1348,15 @@ impl Fight {
             self.boss.shutdown = (self.boss.shutdown - dt).max(0.);
             if self.boss.shutdown == 0. {
                 self.boss.pursuit = 0.;
+                self.boss.turrets = [data::TURRET_HP; 2];
+                self.speed_timer = 15.;
             }
         } else {
+            self.speed_timer -= dt;
+            if self.speed_timer <= 0. {
+                self.speed_timer += 15.;
+                self.boss.speed_stacks = (self.boss.speed_stacks + 1).min(20);
+            }
             self.boss.pursuit -= dt;
             if self.boss.pursuit <= 0. || self.vehicles[self.boss.target].hp <= 0. {
                 let candidates: Vec<_> = (0..4)
@@ -989,39 +1381,99 @@ impl Fight {
             self.boss.position = toward(
                 self.boss.position,
                 target,
-                (5.5 + (30. - self.boss.pursuit) * 0.06) * dt * if slow { 0.5 } else { 1. },
+                if self.boss.cast > 0. {
+                    0.
+                } else {
+                    5. * (1. + self.boss.speed_stacks as f32 * 0.05)
+                        * dt
+                        * if slow { 0.5 } else { 1. }
+                },
             );
             self.boss.travelled += distance(old_boss, self.boss.position);
-            for i in 0..6 {
-                if distance(self.vehicles[i].body.position, self.boss.position) < 7.5 {
-                    self.harm(i, 14. * dt, true);
-                }
+            self.ram_timer = (self.ram_timer - dt).max(0.);
+            if self.ram_timer == 0.
+                && self.boss.cast <= 0.
+                && distance(target, self.boss.position) < 15.
+            {
+                self.ram_timer = 2.;
+                self.harm(self.boss.target, 10_261., true);
+                let v = &mut self.vehicles[self.boss.target];
+                v.vulnerability = v.vulnerability.saturating_add(1);
+                v.vulnerability_time = 20.;
             }
             self.boss.vents -= dt;
             if self.boss.vents <= 0. {
-                self.boss.vents = 17.;
-                self.boss.cast = 3.;
+                self.boss.vents += 20.;
+                self.boss.cast = data::VENTS_DURATION;
+                self.vents_tick = 0.;
                 self.say("Décharges de flammes : interrompre !");
             }
             if self.boss.cast > 0. {
-                self.boss.cast -= dt;
-                if self.boss.cast <= 0. {
+                self.vents_tick -= dt;
+                self.boss.cast = (self.boss.cast - dt).max(0.);
+                if self.vents_tick <= 0. {
+                    vents_pulse = true;
+                    self.vents_tick += 1.;
                     self.stats.vents_missed += 1;
                     for i in 0..6 {
-                        if distance(self.vehicles[i].body.position, self.boss.position) < 28. {
-                            self.harm(i, 12., true);
+                        if distance(self.vehicles[i].body.position, self.boss.position) < 50. {
+                            self.harm_school(i, 3_000., true, School::Fire, true);
                         }
                     }
-                    self.say("Décharges non interrompues.");
                 }
             }
             self.boss.missile -= dt;
             if self.boss.missile <= 0. {
-                self.boss.missile = 5.;
-                for i in 0..6 {
-                    self.harm(i, 0.7, false);
+                self.boss.missile += 4.;
+                let alive: Vec<_> = (0..6).filter(|i| self.vehicles[*i].hp > 0.).collect();
+                if !alive.is_empty() {
+                    self.harm(alive[(self.time as usize / 4) % alive.len()], 4_000., false);
                 }
             }
+            self.napalm_timer -= dt;
+            if self.napalm_timer <= 0. && self.napalm_cast <= 0. {
+                self.napalm_timer += 12.;
+                self.napalm_target = (self.time as usize / 12) % 6;
+                self.napalm_cast = 2.;
+            }
+            if self.napalm_cast > 0. {
+                self.napalm_cast -= dt;
+                if self.napalm_cast <= 0. {
+                    let p = self.vehicles[self.napalm_target].body.position;
+                    for i in 0..6 {
+                        if distance(self.vehicles[i].body.position, p) <= 5. {
+                            self.harm_school(i, 8_000., true, School::Fire, true);
+                            self.vehicles[i].napalm = 8.;
+                        }
+                    }
+                }
+            }
+        }
+        for i in 0..6 {
+            self.vehicles[i].dot_clock -= dt;
+            if self.vehicles[i].dot_clock <= 0. {
+                self.vehicles[i].dot_clock += 1.;
+                if self.vehicles[i].frozen > 0. {
+                    self.harm_school(
+                        i,
+                        self.vehicles[i].max_hp * 0.01,
+                        true,
+                        School::Frost,
+                        false,
+                    );
+                }
+                if self.vehicles[i].napalm > 0. {
+                    self.harm_school(i, 4_000., true, School::Fire, true);
+                }
+                if self.vehicles[i].healing > 0.
+                    && let Some(id) = self.vehicles[i].cargo
+                    && let Some(r) = self.riders.iter_mut().find(|r| r.id == id && r.hp > 0.)
+                {
+                    r.hp = (r.hp + data::RIDER_HP * 0.3).min(data::RIDER_HP);
+                }
+            }
+            self.vehicles[i].napalm = (self.vehicles[i].napalm - dt).max(0.);
+            self.vehicles[i].healing = (self.vehicles[i].healing - dt).max(0.);
         }
         self.crate_timer -= dt;
         if self.crate_timer <= 0. {
@@ -1038,53 +1490,73 @@ impl Fight {
                 self.crates.push(Crate {
                     id,
                     position,
-                    air: 10.,
-                    life: 60.,
+                    air: 180.,
+                    life: 180.,
                 });
             }
         }
         for c in &mut self.crates {
-            c.air = (c.air - dt).max(0.);
             c.life -= dt;
         }
         self.crates.retain(|c| c.life > 0.);
         // Non-player gunners shoot down supplies after a short delay, not instant refills.
-        if self.time as i32 % 5 == 0 {
-            for c in &mut self.crates {
-                if c.air > 0. && c.air < 7. {
-                    c.air = 0.;
-                }
-            }
-        }
         self.launch_timer -= dt;
         if self.launch_timer <= 0. {
             self.launch_timer = 60.;
-            for i in 0..2 {
-                if i != self.role.index()
-                    && self.vehicles[i].passenger
-                    && distance(self.vehicles[i].body.position, self.boss.position) < 65.
-                {
-                    self.vehicles[i].passenger = false;
-                    self.fire(i, self.boss.position, ShotKind::Passenger, false);
-                }
-            }
         }
-        let turrets = self
+        let attackers = self
             .riders
             .iter()
-            .filter(|r| r.state == RiderState::Turret)
+            .filter(|r| {
+                r.state == RiderState::Turret
+                    && r.hp > 0.
+                    && (self.role != Role::DemoPassenger
+                        || r.home != self.role.index()
+                        || self.turret_attack)
+            })
             .count();
-        if turrets >= 2 && self.boss.turret_timer == 0. {
-            self.boss.turret_timer = 8.;
-            self.say("Deux passagers sur le boss : neutralisation des tourelles (automatisée).");
-        }
-        if self.boss.turret_timer > 0. {
-            self.boss.turret_timer -= dt;
-            if self.boss.turret_timer <= 0. {
-                self.boss.turret_timer = 0.;
+        if self.boss.shutdown <= 0. {
+            if let Some(turret) = self.boss.turrets.iter_mut().find(|hp| **hp > 0.) {
+                *turret = (*turret - attackers as f32 * data::RIDER_DPS * dt).max(0.);
+            }
+            let living = self.boss.turrets.iter().filter(|hp| **hp > 0.).count();
+            let riders = self
+                .riders
+                .iter()
+                .filter(|r| r.state == RiderState::Turret && r.hp > 0.)
+                .count();
+            if riders == 0 {
+                self.turret_clock = 0.;
+            } else {
+                self.turret_clock += dt;
+            }
+            if riders > 0 && self.turret_clock >= 2. {
+                self.turret_clock -= 2.;
+                if let Some(r) = self
+                    .riders
+                    .iter_mut()
+                    .find(|r| r.state == RiderState::Turret && r.hp > 0.)
+                {
+                    r.hp = (r.hp - living as f32 * 500.).max(0.);
+                    if r.hp == 0. {
+                        r.state = RiderState::Lost;
+                    }
+                }
+            }
+            if self.boss.turrets.iter().all(|hp| *hp <= 0.) {
                 self.boss.shutdown = 20.;
                 self.boss.cast = 0.;
+                self.napalm_cast = 0.;
+                self.boss.speed_stacks = 0;
+                self.eject_timer = 3.;
+                self.turret_attack = false;
                 self.stats.shutdowns += 1;
+                self.say("Surcharge : 20 secondes, éjection puis secours !");
+            }
+        }
+        if self.eject_timer > 0. {
+            self.eject_timer -= dt;
+            if self.eject_timer <= 0. {
                 for (i, r) in self.riders.iter_mut().enumerate() {
                     if r.state == RiderState::Turret {
                         r.state = RiderState::Ground;
@@ -1094,16 +1566,10 @@ impl Fight {
                         });
                     }
                 }
-                self.say("Surcharge : 20 secondes, récupérer les passagers !");
             }
         }
         for r in &mut self.riders {
-            if r.state == RiderState::Ground {
-                r.hp -= dt * 0.6;
-                if r.hp <= 0. {
-                    r.state = RiderState::Lost;
-                }
-            } else if r.state == RiderState::Turret {
+            if r.state == RiderState::Turret {
                 r.position = self.boss.position;
             }
         }
@@ -1118,9 +1584,13 @@ impl Fight {
             self.tower_tick(dt);
         }
         for h in &mut self.hazards {
-            h.age += dt;
-            if h.kind == HazardKind::Frost && h.age < 4.5 {
-                h.position = toward(h.position, self.vehicles[h.target].body.position, 6. * dt);
+            if h.kind == HazardKind::Frost && h.age < 0. {
+                h.position = toward(h.position, self.vehicles[h.target].body.position, 2.5 * dt);
+                if distance(h.position, self.vehicles[h.target].body.position) <= 0.6 {
+                    h.age = 0.;
+                }
+            } else {
+                h.age += dt;
             }
         }
         for i in 0..6 {
@@ -1129,31 +1599,60 @@ impl Fight {
                 h.kind == HazardKind::Fire && h.age > 0.8 && distance(h.position, p) < h.radius
             });
             if fire {
-                self.harm(i, 5. * dt, true);
+                self.harm_school(
+                    i,
+                    self.vehicles[i].max_hp * 0.10 * dt,
+                    true,
+                    School::Fire,
+                    false,
+                );
                 self.vehicles[i].frozen = 0.;
             }
             let hits: Vec<_> = self
                 .hazards
                 .iter()
                 .filter(|h| {
-                    distance(h.position, p) < h.radius + 1.
-                        && ((h.kind == HazardKind::Storm && h.age >= 2.8 && h.age - dt < 2.8)
-                            || (h.kind == HazardKind::Frost && h.age >= 6. && h.age - dt < 6.))
+                    (h.kind == HazardKind::Storm || distance(h.position, p) <= h.radius)
+                        && h.kind != HazardKind::Tar
+                        && h.age >= h.strike_at()
+                        && h.age - dt < h.strike_at()
                 })
-                .map(|h| h.kind)
+                .map(|h| (h.kind, distance(h.position, p)))
                 .collect();
-            for kind in hits {
-                self.harm(i, 12., true);
-                if kind == HazardKind::Frost {
-                    self.vehicles[i].frozen = 6.;
+            for (kind, d) in hits {
+                match kind {
+                    HazardKind::Storm => self.harm_school(
+                        i,
+                        if d <= 7. {
+                            300_000.
+                        } else {
+                            300_000. / (d - 6.).max(1.)
+                        },
+                        true,
+                        School::Nature,
+                        false,
+                    ),
+                    HazardKind::Frost => {
+                        self.harm_school(i, 150_000., true, School::Frost, false);
+                        self.vehicles[i].frozen = 60.;
+                    }
+                    HazardKind::Fire => self.harm_school(i, 150_000., true, School::Fire, false),
+                    _ => {}
                 }
             }
         }
+        for h in &mut self.hazards {
+            if h.kind == HazardKind::Frost && h.age >= 10. {
+                h.age = -1.;
+                h.target = (h.target + 1) % 6;
+            }
+        }
+        self.harm_exposed_riders(dt, vents_pulse);
         for h in &self.hazards {
             if h.kind == HazardKind::Tar && h.burning {
                 for a in &mut self.adds {
                     if distance(a.position, h.position) < h.radius {
-                        a.hp -= 12. * dt;
+                        a.hp -= 6_500. * data::GEAR_SCALE * dt;
                     }
                 }
             }
@@ -1173,38 +1672,55 @@ impl Fight {
         }
         self.impacts.retain(|i| i.age < 0.7);
         let mut damage = [0.; 6];
-        for a in &mut self.adds {
-            if let Some((i, v)) = self
+        let mut rider_damage = vec![0.; self.riders.len()];
+        for a in self.adds.iter_mut().filter(|a| a.hp > 0.) {
+            if let Some((rider, i, position)) = self
                 .vehicles
                 .iter()
                 .enumerate()
                 .filter(|(_, v)| v.hp > 0.)
-                .min_by(|(_, a1), (_, a2)| {
-                    distance(a1.body.position, a.position)
-                        .total_cmp(&distance(a2.body.position, a.position))
+                .map(|(i, v)| (false, i, v.body.position))
+                .chain(
+                    self.riders
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, r)| r.state == RiderState::Ground && r.hp > 0.)
+                        .map(|(i, r)| (true, i, r.position)),
+                )
+                .min_by(|(_, _, a1), (_, _, a2)| {
+                    distance(*a1, a.position).total_cmp(&distance(*a2, a.position))
                 })
             {
                 let slow = self.hazards.iter().any(|h| {
                     h.kind == HazardKind::Tar && distance(h.position, a.position) < h.radius
                 });
-                a.position = toward(
-                    a.position,
-                    v.body.position,
-                    dt * if slow { 1.5 } else { 4. },
-                );
-                if distance(a.position, v.body.position) < 3. {
-                    damage[i] += dt * 2.;
+                a.position = toward(a.position, position, dt * if slow { 1.5 } else { 4. });
+                a.attack = (a.attack - dt).max(0.);
+                if distance(a.position, position) < 5. && a.attack == 0. {
+                    if rider {
+                        rider_damage[i] += 3_845.;
+                    } else {
+                        damage[i] += 3_845.;
+                    }
+                    a.attack = 2.;
                 }
             }
         }
         for (i, d) in damage.into_iter().enumerate() {
-            self.harm(i, d, true);
+            self.harm_school(i, d, true, School::Nature, false);
         }
+        for (r, d) in self.riders.iter_mut().zip(rider_damage) {
+            r.hp = (r.hp - d).max(0.);
+            if r.hp == 0. {
+                r.state = RiderState::Lost;
+            }
+        }
+        self.release_destroyed_carriers();
         self.adds.retain(|a| a.hp > 0.);
         if self.boss.hp <= 0. {
             self.outcome = Outcome::Victory;
             self.say("Victoire ! F5 pour recommencer.");
-        } else if self.player().hp <= 0. {
+        } else if self.health_fraction() <= 0. {
             self.outcome = Outcome::Defeat;
             self.say("Véhicule détruit. F5 pour recommencer.");
         }
@@ -1215,73 +1731,78 @@ impl Fight {
         self.frost_timer -= dt;
         self.life_timer -= dt;
         if self.storm_timer <= 0. {
-            self.storm_timer = 10.;
-            for i in [self.role.index(), (self.time as usize) % 6] {
+            self.storm_timer = 90.;
+            for i in 0..8 {
                 let id = self.id();
+                let angle = (id as f32 * 2.39996) % TAU;
                 self.hazards.push(Hazard {
                     id,
                     kind: HazardKind::Storm,
-                    position: self.vehicles[i].body.position,
-                    radius: 5.,
+                    position: Point {
+                        x: angle.cos() * 90.,
+                        z: (angle * 1.7).sin() * 90.,
+                    },
+                    radius: 7.,
                     age: 0.,
-                    duration: 3.8,
+                    duration: 10. + (id % 15) as f32,
                     burning: false,
                     target: i,
                 });
             }
         }
         if self.fire_timer <= 0. {
-            self.fire_timer += 0.65;
-            let a = self.fire_phase as f32 * TAU / 48.;
-            self.fire_phase = (self.fire_phase + 1) % 48;
+            self.fire_timer += 2.;
             let id = self.id();
             self.hazards.push(Hazard {
                 id,
                 kind: HazardKind::Fire,
-                position: Point {
-                    x: 29. * a.sin().signum() * a.sin().abs().powf(1.55),
-                    z: -29. * a.cos().signum() * a.cos().abs().powf(1.55),
-                },
-                radius: 2.5,
+                position: self.fire_position,
+                radius: 9.,
                 age: 0.,
-                duration: 34.,
+                duration: 30.8,
                 burning: false,
                 target: 0,
             });
         }
-        if self.frost_timer <= 0. {
-            self.frost_timer = 25.;
-            let id = self.id();
-            let target = self.role.index();
-            self.hazards.push(Hazard {
-                id,
-                kind: HazardKind::Frost,
-                position: bounded(Point {
-                    x: self.vehicles[target].body.position.x + (self.time * 0.37).cos() * 16.,
-                    z: self.vehicles[target].body.position.z + (self.time * 0.37).sin() * 16.,
-                }),
-                radius: 4.5,
-                age: 0.,
-                duration: 7.,
-                burning: false,
-                target,
-            });
+        if self.time >= 42. {
+            let (x, z) = data::FIRE_PATH[self.fire_phase as usize];
+            let goal = Point { x, z };
+            self.fire_position = toward(self.fire_position, goal, 2.5 * dt);
+            if distance(self.fire_position, goal) < 0.1 {
+                self.fire_phase = (self.fire_phase + 1) % data::FIRE_PATH.len() as u32;
+            }
         }
-        if self.life_timer <= 0. {
-            self.life_timer = 30.;
-            let sign = if self.time as i32 % 2 == 0 { 1. } else { -1. };
-            for i in 0..4 {
+        if self.frost_timer <= 0. {
+            self.frost_timer = f32::MAX;
+            for (target, (x, z)) in [(73.4, -43.5), (-48., 75.)].into_iter().enumerate() {
                 let id = self.id();
-                self.adds.push(Add {
+                self.hazards.push(Hazard {
                     id,
-                    position: Point {
-                        x: sign * 46. + i as f32,
-                        z: -46.,
-                    },
-                    hp: 35.,
+                    kind: HazardKind::Frost,
+                    position: Point { x, z },
+                    radius: 10.,
+                    age: -1.,
+                    duration: f32::MAX,
+                    burning: false,
+                    target,
                 });
             }
-            self.say("Freya : renforts dans un angle.");
+        }
+        if self.life_timer <= 0. {
+            self.life_timer = 29.;
+            for (x, z) in data::LIFE_CORNERS {
+                for ward in [true, false] {
+                    let id = self.id();
+                    self.adds.push(Add {
+                        id,
+                        position: bounded(Point { x, z }),
+                        hp: if ward { 302_400. } else { 64_260. },
+                        ward,
+                        attack: 2.,
+                    });
+                }
+            }
+            self.say("Freya : gardiens et flagellants dans les quatre angles.");
         }
     }
 }
@@ -1290,14 +1811,409 @@ impl Fight {
 mod tests {
     use super::*;
     #[test]
+    fn turrets_do_not_bank_attacks_before_a_late_boarding() {
+        let mut f = Fight::new(Role::DemoPassenger, true);
+        f.start();
+        advance(&mut f, 45.);
+        f.riders.push(Rider {
+            id: 901,
+            home: 0,
+            position: f.boss.position,
+            state: RiderState::Turret,
+            hp: data::RIDER_HP,
+        });
+        f.vehicles[0].passenger = false;
+        advance(&mut f, 0.5);
+        assert_eq!(f.player_rider().unwrap().hp, data::RIDER_HP);
+    }
+    #[test]
+    fn off_gcd_mortar_ignores_but_preserves_the_active_passenger_gcd() {
+        let mut f = playing(Role::DemoPassenger);
+        f.boss.position = Point { x: -18., z: 0. };
+        f.cast(3, None).unwrap();
+        let gcd = f.player().gcd[1];
+        assert!(f.cast(0, Some(f.boss.position)).is_ok());
+        assert_eq!(f.player().gcd[1], gcd);
+    }
+    #[test]
+    fn passenger_survives_original_vehicle_death_during_flight() {
+        let mut f = playing(Role::DemoPassenger);
+        f.vehicles[0].passenger = false;
+        f.fire(0, f.boss.position, ShotKind::Passenger, false);
+        f.vehicles[0].hp = 0.;
+        f.tick(0.02);
+        assert_eq!(f.outcome, Outcome::Fighting);
+    }
+    #[test]
+    fn ground_and_carried_passengers_are_not_immune_to_fire() {
+        for state in [RiderState::Ground, RiderState::Carried] {
+            let mut f = playing(Role::DemoPassenger);
+            let p = Point { x: 100., z: 100. };
+            f.vehicles[0].passenger = false;
+            f.riders.push(Rider {
+                id: 901,
+                home: 0,
+                position: p,
+                state,
+                hp: data::RIDER_HP,
+            });
+            if state == RiderState::Carried {
+                f.vehicles[4].cargo = Some(901);
+                f.vehicles[4].body.position = p;
+                f.vehicles[4].frozen = 10.;
+            }
+            f.hazards.push(Hazard {
+                id: 902,
+                kind: HazardKind::Fire,
+                position: p,
+                radius: 9.,
+                age: 2.,
+                duration: 30.,
+                burning: false,
+                target: 0,
+            });
+            f.tick(0.05);
+            assert!(f.player_rider().unwrap().hp < data::RIDER_HP, "{state:?}");
+        }
+    }
+    #[test]
+    fn freyas_plants_attack_a_nearer_player_on_the_ground() {
+        let mut f = playing(Role::DemoPassenger);
+        for v in &mut f.vehicles {
+            v.body.position = Point { x: 80., z: 80. };
+        }
+        f.vehicles[0].passenger = false;
+        let p = Point { x: 0., z: 0. };
+        f.riders.push(Rider {
+            id: 901,
+            home: 0,
+            position: p,
+            state: RiderState::Ground,
+            hp: data::RIDER_HP,
+        });
+        f.adds.push(Add {
+            id: 902,
+            position: p,
+            hp: 64_260.,
+            ward: false,
+            attack: 0.,
+        });
+        f.tick(0.02);
+        assert!(f.player_rider().unwrap().hp < data::RIDER_HP);
+    }
+    #[test]
+    fn carrier_death_releases_the_passenger_to_the_ground() {
+        let mut f = playing(Role::DemoPassenger);
+        f.vehicles[0].passenger = false;
+        f.vehicles[4].cargo = Some(901);
+        f.vehicles[4].hp = 0.;
+        f.riders.push(Rider {
+            id: 901,
+            home: 0,
+            position: f.vehicles[4].body.position,
+            state: RiderState::Carried,
+            hp: data::RIDER_HP,
+        });
+        f.tick(0.02);
+        assert_eq!(f.player_rider().unwrap().state, RiderState::Ground);
+        assert_eq!(f.vehicles[4].cargo, None);
+    }
+    #[test]
+    fn motorcycle_can_drop_a_passenger_whose_home_was_destroyed() {
+        let mut f = playing(Role::Moto);
+        f.vehicles[0].passenger = false;
+        f.vehicles[0].hp = 0.;
+        f.vehicles[4].cargo = Some(901);
+        f.riders.push(Rider {
+            id: 901,
+            home: 0,
+            position: f.player().body.position,
+            state: RiderState::Carried,
+            hp: data::RIDER_HP,
+        });
+        assert!(f.cast(3, None).is_ok());
+        assert_eq!(f.vehicles[4].cargo, None);
+        assert_eq!(f.riders[0].state, RiderState::Ground);
+    }
+    #[test]
+    fn offensive_ai_can_position_in_the_expanded_half_of_the_arena() {
+        let mut f = playing(Role::Moto);
+        f.boss.position = Point { x: 90., z: 0. };
+        f.boss.target = 2;
+        f.vehicles[0].body.position = Point { x: 58., z: 0. };
+        let old = f.vehicles[0].body.position;
+        f.ai(0, 0.02);
+        assert_eq!(f.vehicles[0].body.position, old);
+    }
+    #[test]
+    fn ground_passenger_can_move_but_boarded_and_carried_passengers_cannot() {
+        let mut f = playing(Role::DemoPassenger);
+        assert!(!f.player_can_move());
+        f.vehicles[0].passenger = false;
+        f.riders.push(Rider {
+            id: 901,
+            home: 0,
+            position: f.boss.position,
+            state: RiderState::Ground,
+            hp: data::RIDER_HP,
+        });
+        assert!(f.player_can_move());
+        f.riders[0].state = RiderState::Carried;
+        assert!(!f.player_can_move());
+        f.riders[0].state = RiderState::Turret;
+        assert!(!f.player_can_move());
+    }
+    #[test]
+    fn hm_and_equipment_use_absolute_health() {
+        let normal = Fight::new(Role::DemoDriver, false);
+        let hard = Fight::new(Role::DemoDriver, true);
+        assert_eq!(normal.boss.hp, 23_009_250.);
+        assert!((hard.boss.hp - 88_392_336.).abs() < 16.);
+        assert_eq!(normal.vehicles[0].hp, 913_500.);
+        assert_eq!(normal.vehicles[2].hp, 1_644_300.);
+        assert_eq!(normal.vehicles[4].hp, 730_800.);
+    }
+    #[test]
+    fn ai_passenger_boosts_a_human_driver_and_pays_pyrite() {
+        let mut f = playing(Role::DemoDriver);
+        f.boss.target = 0;
+        f.boss.pursuit = 25.;
+        f.boss.position = f.player().body.position;
+        f.ai(0, 0.02);
+        assert_eq!(f.player().boost, 20.);
+        assert_eq!(f.player().pyrite, 75.);
+        f.ai(0, 0.02);
+        assert_eq!(f.player().pyrite, 75.);
+    }
+    #[test]
+    fn absent_passenger_cannot_boost_an_ai_driver() {
+        let mut f = playing(Role::SiegeDriver);
+        f.vehicles[0].passenger = false;
+        f.boss.target = 0;
+        f.boss.pursuit = 25.;
+        f.boss.position = f.vehicles[0].body.position;
+        f.ai(0, 0.02);
+        assert_eq!(f.vehicles[0].boost, 0.);
+        assert_eq!(f.vehicles[0].pyrite, 100.);
+    }
+    #[test]
+    fn boost_uses_twenty_seconds_and_twenty_five_pyrite() {
+        let mut f = playing(Role::DemoPassenger);
+        f.cast(3, None).unwrap();
+        assert_eq!(f.player().boost, 20.);
+        assert_eq!(f.player().pyrite, 75.);
+    }
+    #[test]
+    fn vehicle_global_cooldown_blocks_different_driver_spells() {
+        let mut f = playing(Role::DemoDriver);
+        f.cast(0, Some(f.boss.position)).unwrap();
+        assert!(f.cast(1, Some(f.boss.position)).is_err());
+        assert_eq!(f.player().pyrite, 100.);
+    }
+    #[test]
+    fn displayed_cooldowns_include_the_seat_global_cooldown() {
+        let mut f = playing(Role::DemoDriver);
+        f.cast(0, Some(f.boss.position)).unwrap();
+        assert_eq!(f.cooldowns()[0], 1.);
+        assert_eq!(f.cooldowns()[1], 1.);
+        assert!(f.cast(0, Some(f.boss.position)).is_err());
+        advance(&mut f, 1.1);
+        assert_eq!(f.cooldowns()[0], 0.);
+        assert!(f.cast(0, Some(f.boss.position)).is_ok());
+    }
+    #[test]
+    fn displayed_cooldowns_preserve_off_gcd_spells_and_seat_independence() {
+        let mut f = playing(Role::SiegeGunner);
+        f.cast(1, Some(f.boss.position)).unwrap();
+        assert_eq!(f.cooldowns()[0], 0.);
+        assert_eq!(f.cooldowns()[1], 1.);
+        assert_eq!(f.cooldowns()[2], 1.);
+        f.role = Role::SiegeDriver;
+        assert_eq!(f.cooldowns(), [0.; 5]);
+    }
+    #[test]
+    fn loading_the_catapult_disables_the_passenger_boost() {
+        let mut f = playing(Role::DemoDriver);
+        f.vehicles[0].loaded = true;
+        f.boss.target = 0;
+        f.ai(0, 0.02);
+        assert_eq!(f.player().boost, 0.);
+        assert_eq!(f.player().pyrite, 100.);
+    }
+    #[test]
+    fn speed_stacks_survive_a_pursuit_change_but_not_shutdown() {
+        let mut f = playing(Role::DemoDriver);
+        f.boss.speed_stacks = 7;
+        f.boss.pursuit = 0.;
+        f.tick(0.02);
+        assert_eq!(f.boss.speed_stacks, 7);
+        f.boss.turrets = [0.; 2];
+        f.tick(0.02);
+        assert_eq!(f.boss.speed_stacks, 0);
+        assert_eq!(f.boss.shutdown, 20.);
+    }
+    #[test]
+    fn shield_absorbs_fifteen_percent_but_not_nature_damage() {
+        let mut f = playing(Role::SiegeGunner);
+        f.player_mut().shield = 5.;
+        let hp = f.player().hp;
+        f.harm_school(2, 1_000., false, School::Fire, false);
+        assert_eq!(f.player().hp, hp - 850.);
+        f.harm_school(2, 1_000., false, School::Nature, false);
+        assert_eq!(f.player().hp, hp - 1_850.);
+    }
+    #[test]
+    fn manual_turret_attack_rejects_a_stale_vehicle_aim() {
+        let mut f = playing(Role::DemoPassenger);
+        f.vehicles[0].passenger = false;
+        f.riders.push(Rider {
+            id: 901,
+            home: 0,
+            position: f.boss.position,
+            state: RiderState::Turret,
+            hp: data::RIDER_HP,
+        });
+        assert!(f.cast(0, Some(f.boss.position)).is_err());
+        assert!(!f.attacking_turrets());
+        let turrets = f.boss.turrets;
+        advance(&mut f, 1.);
+        assert_eq!(f.boss.turrets, turrets);
+    }
+    #[test]
+    fn two_seats_do_not_share_global_cooldowns() {
+        let mut f = playing(Role::DemoDriver);
+        f.cast(0, Some(f.boss.position)).unwrap();
+        assert!(f.cast_for(0, Role::DemoPassenger, 3, None, false).is_ok());
+        assert_eq!(f.player().boost, 20.);
+    }
+    #[test]
+    fn empty_pyrite_cannot_fund_an_ai_boost() {
+        let mut f = playing(Role::DemoDriver);
+        f.player_mut().pyrite = 24.;
+        f.boss.target = 0;
+        f.ai(0, 0.02);
+        assert_eq!(f.player().boost, 0.);
+        assert_eq!(f.player().pyrite, 24.);
+    }
+    #[test]
+    fn actual_hm_attempt_ends_without_smoke_test_health_or_ammo() {
+        let mut f = Fight::new(Role::DemoPassenger, true);
+        f.start();
+        for _ in 0..(60 * 600) {
+            f.tick(1. / 60.);
+            if f.outcome != Outcome::Fighting {
+                break;
+            }
+        }
+        assert!(matches!(f.outcome, Outcome::Victory | Outcome::Defeat));
+        assert!(f.time > 30. && f.time < 600.);
+        assert!(
+            f.vehicles
+                .iter()
+                .all(|v| v.hp >= 0. && v.hp <= v.max_hp && v.pyrite >= 0. && v.pyrite <= 100.)
+        );
+    }
+    #[test]
+    fn a_single_human_passenger_can_attack_both_turrets() {
+        let mut f = Fight::new(Role::DemoPassenger, true);
+        f.start();
+        f.vehicles[0].passenger = false;
+        f.riders.push(Rider {
+            id: 900,
+            home: 0,
+            position: f.boss.position,
+            state: RiderState::Turret,
+            hp: data::RIDER_HP,
+        });
+        advance(&mut f, 2.);
+        assert_eq!(f.stats.shutdowns, 0);
+        assert!(f.cast(0, None).is_ok());
+        advance(&mut f, 39.);
+        assert_eq!(
+            f.stats.shutdowns, 1,
+            "t={} outcome={:?} turrets={:?} riders={:?}",
+            f.time, f.outcome, f.boss.turrets, f.riders
+        );
+    }
+    #[test]
+    fn original_vehicle_death_does_not_kill_a_passenger_on_the_boss() {
+        let mut f = playing(Role::DemoPassenger);
+        f.vehicles[0].passenger = false;
+        f.vehicles[0].hp = 0.;
+        f.riders.push(Rider {
+            id: 900,
+            home: 0,
+            position: f.boss.position,
+            state: RiderState::Turret,
+            hp: data::RIDER_HP,
+        });
+        f.tick(0.02);
+        assert_eq!(f.outcome, Outcome::Fighting);
+    }
+    #[test]
+    fn nonfire_projectiles_do_not_thaw_hodirs_prison() {
+        let mut f = playing(Role::DemoDriver);
+        f.vehicles[0].frozen = 60.;
+        let p = f.vehicles[0].body.position;
+        f.fire(2, p, ShotKind::Rocket, false);
+        let shot = f.shots.pop().unwrap();
+        f.impact(shot);
+        assert_eq!(f.vehicles[0].frozen, 60.);
+        f.fire(2, p, ShotKind::Mortar, false);
+        let shot = f.shots.pop().unwrap();
+        f.impact(shot);
+        assert_eq!(f.vehicles[0].frozen, 0.);
+    }
+    #[test]
+    fn flame_vents_deal_damage_during_the_channel() {
+        let mut f = playing(Role::DemoDriver);
+        for v in &mut f.vehicles[1..] {
+            v.hp = 0.;
+        }
+        f.boss.position = f.player().body.position;
+        f.boss.position.z -= 35.;
+        f.boss.vents = 0.;
+        let hp = f.player().hp;
+        advance(&mut f, 1.2);
+        assert!(f.boss.cast > 8.);
+        assert!(f.player().hp < hp - 3000.);
+    }
+    #[test]
+    fn difficulty_switch_rebuilds_health_only_before_pull() {
+        let mut f = Fight::new(Role::DemoDriver, true);
+        f.set_towers(false);
+        assert_eq!(f.boss.hp, 23_009_250.);
+        f.start();
+        f.set_towers(true);
+        assert!(!f.towers);
+        assert_eq!(f.boss.hp, f.boss.max_hp);
+    }
+    #[test]
     fn frost_ray_can_reach_a_stationary_target() {
         let mut f = playing(Role::DemoDriver);
-        f.vehicles[0].hp = 1000.;
+        f.vehicles[0].hp = 913_500.;
         f.towers = true;
-        f.frost_timer = 0.;
+        f.frost_timer = 100.;
         f.storm_timer = 100.;
         f.fire_timer = 100.;
         f.life_timer = 100.;
+        let p = f.player().body.position;
+        f.hazards.push(Hazard {
+            id: 900,
+            kind: HazardKind::Frost,
+            position: Point {
+                x: p.x + 1.,
+                z: p.z,
+            },
+            radius: 10.,
+            age: -1.,
+            duration: f32::MAX,
+            burning: false,
+            target: 0,
+        });
+        for v in &mut f.vehicles[1..] {
+            v.hp = 0.;
+        }
         advance(&mut f, 7.);
         assert!(f.player().frozen > 0.);
     }
@@ -1319,6 +2235,7 @@ mod tests {
     fn overlapping_fire_patches_do_not_multiply_burn_damage() {
         let mut f = playing(Role::DemoDriver);
         let p = f.player().body.position;
+        let hp = f.player().hp;
         for id in [900, 901] {
             f.hazards.push(Hazard {
                 id,
@@ -1332,7 +2249,7 @@ mod tests {
             });
         }
         f.tick(0.05);
-        assert!((f.player().hp - 99.75).abs() < 0.001);
+        assert!((f.player().hp - (hp - hp * 0.10 * 0.05)).abs() < 0.1);
     }
     #[test]
     fn every_role_spell_can_be_cast_with_its_preconditions() {
@@ -1342,7 +2259,7 @@ mod tests {
                 let owner = role.index();
                 f.vehicles[owner].body.position = Point { x: 0., z: 0. };
                 f.boss.position = Point { x: 0., z: -12. };
-                f.vehicles[owner].loaded = true;
+                f.vehicles[owner].loaded = role == Role::DemoDriver;
                 f.vehicles[owner].pyrite = 40.;
                 let target = Point { x: 0., z: -12. };
                 f.crates.push(Crate {
@@ -1373,7 +2290,7 @@ mod tests {
                         .is_ok(),
                     "{role:?} slot {slot}"
                 );
-                assert!(f.vehicles[owner].cooldowns[slot] > 0.);
+                assert_eq!(f.cooldowns()[slot], spec.cooldown.max(spec.gcd));
             }
         }
     }
@@ -1405,7 +2322,6 @@ mod tests {
     #[test]
     fn two_turret_passengers_trigger_shutdown_and_land() {
         let mut f = playing(Role::DemoDriver);
-        f.vehicles[0].hp = 1000.;
         for home in [0, 1] {
             f.vehicles[home].passenger = false;
             f.riders.push(Rider {
@@ -1413,10 +2329,10 @@ mod tests {
                 home,
                 position: f.boss.position,
                 state: RiderState::Turret,
-                hp: 70.,
+                hp: data::RIDER_HP,
             });
         }
-        advance(&mut f, 9.);
+        advance(&mut f, 23.);
         assert_eq!(f.stats.shutdowns, 1);
         assert!(f.boss.shutdown > 0.);
         assert!(f.riders.iter().all(|r| r.state != RiderState::Turret));
@@ -1427,7 +2343,7 @@ mod tests {
         f.fire(0, Point { x: 45., z: 45. }, ShotKind::Pyrite, true);
         let s = f.shots.pop().unwrap();
         f.impact(s);
-        assert_eq!(f.boss.hp, 1000.);
+        assert_eq!(f.boss.hp, 23_009_250.);
         assert_eq!(f.player().stacks, 0);
         assert_eq!(f.stats.misses, 1);
     }
@@ -1440,20 +2356,20 @@ mod tests {
     #[test]
     fn allied_drivers_escape_all_four_corners() {
         for index in [1, 3, 5] {
-            for x in [-51_f32, 51.] {
-                for z in [-51_f32, 51.] {
+            for x in [-103_f32, 103.] {
+                for z in [-103_f32, 103.] {
                     let mut f = playing(Role::DemoDriver);
                     f.vehicles[index].body.position = Point { x, z };
                     f.boss.position = Point {
-                        x: x.signum() * 48.,
-                        z: z.signum() * 48.,
+                        x: x.signum() * 100.,
+                        z: z.signum() * 100.,
                     };
                     for _ in 0..200 {
                         f.ai(index, 0.02);
                     }
                     let p = f.vehicles[index].body.position;
                     assert!(distance(p, Point { x, z }) > 8., "{index} stuck at {x}/{z}");
-                    assert!(p.x.abs() <= 51. && p.z.abs() <= 51.);
+                    assert!(p.x.abs() <= 103. && p.z.abs() <= 103.);
                 }
             }
         }
@@ -1511,7 +2427,7 @@ mod tests {
         let mut f = playing(Role::DemoDriver);
         f.cast(1, Some(f.boss.position)).unwrap();
         assert_eq!(f.player().stacks, 0);
-        assert_eq!(f.boss.hp, 1000.);
+        assert_eq!(f.boss.hp, 23_009_250.);
         assert_eq!(f.player().pyrite, 95.);
     }
     #[test]
@@ -1529,7 +2445,7 @@ mod tests {
         let mut f = playing(Role::DemoDriver);
         f.fire(0, f.boss.position, ShotKind::Pyrite, true);
         let shot = f.shots.pop().unwrap();
-        f.boss.position.x += 20.;
+        f.boss.position.x += 30.;
         f.impact(shot);
         assert_eq!(f.stats.misses, 1);
         assert_eq!(f.vehicles[0].stacks, 0);
@@ -1550,7 +2466,7 @@ mod tests {
         f.cast(1, None).unwrap();
         assert_eq!(f.boss.cast, 0.);
         assert_eq!(f.stats.interrupts, 1);
-        assert_eq!(f.player().energy, 70.);
+        assert_eq!(f.player().energy, 62.);
     }
     #[test]
     fn electroshock_cannot_interrupt_behind() {
@@ -1598,7 +2514,7 @@ mod tests {
         let shot = f.shots.pop().unwrap();
         f.impact(shot);
         assert_eq!(f.crates[0].air, 0.);
-        assert_eq!(f.boss.hp, 1000.);
+        assert_eq!(f.boss.hp, 23_009_250.);
     }
     #[test]
     fn projection_requires_loaded_passenger() {
@@ -1623,9 +2539,11 @@ mod tests {
         f.cast(3, None).unwrap();
         assert_eq!(f.player().cargo, Some(99));
         f.cast(4, None).unwrap();
-        assert_eq!(f.riders[0].hp, 100.);
+        advance(&mut f, 4.);
+        assert_eq!(f.riders[0].hp, data::RIDER_HP);
         f.vehicles[4].body.position = f.vehicles[0].body.position;
         f.vehicles[4].cooldowns[3] = 0.;
+        f.vehicles[4].gcd[0] = 0.;
         f.cast(3, None).unwrap();
         assert!(f.vehicles[0].passenger);
         assert_eq!(f.stats.rescued, 1);
@@ -1642,8 +2560,8 @@ mod tests {
         f.vehicles[0].hp = 10000.;
         advance(&mut f, 40.);
         assert!(f.vehicles.iter().all(|v| v.body.position.x.is_finite()
-            && v.body.position.x.abs() <= 54.
-            && v.body.position.z.abs() <= 54.));
-        assert!(f.boss.hp < 1000.);
+            && v.body.position.x.abs() <= 105.5
+            && v.body.position.z.abs() <= 105.5));
+        assert!(f.boss.hp < 23_009_250.);
     }
 }

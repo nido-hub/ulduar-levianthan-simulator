@@ -314,7 +314,7 @@ pub fn setup(
                 });
             }
             p.spawn((text("", &font, 12.0, Color::srgb(0.65, 0.77, 0.65)), DynamicText::Notice));
-            p.spawn(text("Clic droit : orientation uniquement, aucun strafe. Les sorts projetés exigent un point d'impact.\nF2 et F7 sont disponibles avant le pull ; F5 remet toute la tentative à zéro.\nTourelles sur le boss automatisées. Valeurs pédagogiques, pas certifiées 3.3.5.", &font, 12.0, Color::srgb(0.64, 0.62, 0.61)));
+            p.spawn(text("Clic droit : orientation uniquement, aucun strafe. Les sorts projetés exigent un point d'impact.\nF2 et F7 avant le pull ; F5 remet toute la tentative à zéro. HM 10 joueurs / ilvl 215.\nSur le boss : 1 ou Attaquer les tourelles, puis surcharge automatique. Fidélité exacte non certifiée.", &font, 12.0, Color::srgb(0.64, 0.62, 0.61)));
         });
     });
 }
@@ -456,10 +456,11 @@ pub fn update(
                     format!("DÉCHARGES DE FLAMMES {:.1} s", raid.0.boss.cast)
                 } else {
                     format!(
-                        "Poursuite : {} {} · {:.0} s",
+                        "Poursuite : {} {} · {:.0} s · Vitesse +{} % · ilvl 215",
                         raid.0.vehicles[raid.0.boss.target].kind.name(),
                         raid.0.boss.target % 2 + 1,
-                        raid.0.boss.pursuit
+                        raid.0.boss.pursuit,
+                        raid.0.boss.speed_stacks as u32 * 5
                     )
                 }
             ),
@@ -475,7 +476,7 @@ pub fn update(
             }
             DynamicText::CombatStats => format!(
                 "PV véhicule : {:.0} % · Ressource : {:.0}\nPyrite : {} / 10 · {:.1} s\nTirs : {} · Impacts : {} · Ratés : {}\nInterruptions : {} · Décharges ratées : {}\nSecours : {} · Dégâts évitables : {:.0}\n{}",
-                raid.0.player().hp,
+                raid.0.health_fraction() * 100.,
                 raid.0.resource(),
                 raid.0.player().stacks,
                 raid.0.player().stack_time.max(0.),
@@ -525,8 +526,12 @@ pub fn update(
             ),
             DynamicText::Notice => config.notice.clone(),
             DynamicText::Button(UiAction::Ability(slot)) => {
-                if let Some(spell) = leviathan_combat::spells(raid.0.role).get(*slot) {
-                    let cd = raid.0.player().cooldowns[*slot];
+                if let Some(spell) = raid.0.active_spells().get(*slot) {
+                    let cd = if raid.0.onboard() {
+                        raid.0.cooldowns()[*slot]
+                    } else {
+                        0.
+                    };
                     format!(
                         "{} · {}{}\n{} · coût {:.0}",
                         slot + 1,
@@ -625,6 +630,7 @@ pub fn button_style(
 
 pub fn update_plates(
     raid: Res<crate::raid::Raid>,
+    models: Res<crate::models::ModelStatus>,
     camera: Single<(&Camera, &GlobalTransform), With<crate::FollowCamera>>,
     window: Single<&Window>,
     mut plates: Query<(&UnitPlate, &mut Node, &mut Text)>,
@@ -634,8 +640,8 @@ pub fn update_plates(
         let (position, height, hp, label) = if plate.0 == 6 {
             (
                 raid.0.boss.position,
-                10.,
-                raid.0.boss.hp / 10.,
+                if models.boss_loaded { 23. } else { 10. },
+                raid.0.boss.hp / raid.0.boss.max_hp * 100.,
                 "Léviathan des flammes".to_string(),
             )
         } else {
@@ -647,7 +653,7 @@ pub fn update_plates(
                     leviathan_combat::Kind::Siege => 6.,
                     leviathan_combat::Kind::Moto => 4.,
                 },
-                v.hp,
+                v.hp / v.max_hp * 100.,
                 format!(
                     "{} {}{}",
                     v.kind.name(),

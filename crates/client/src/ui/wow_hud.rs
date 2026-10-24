@@ -36,10 +36,10 @@ pub enum HudBar {
 impl HudBar {
     fn percent(self, fight: &leviathan_combat::Fight) -> f32 {
         match self {
-            Self::Health => fill_percent(fight.player().hp, 100.),
+            Self::Health => fight.health_fraction() * 100.,
             Self::Resource => fill_percent(fight.resource(), 100.),
-            Self::Boss => fill_percent(fight.boss.hp, 1000.),
-            Self::Cast => fill_percent(fight.boss.cast, 3.),
+            Self::Boss => fill_percent(fight.boss.hp, fight.boss.max_hp),
+            Self::Cast => fill_percent(fight.boss.cast, leviathan_combat::data::VENTS_DURATION),
             Self::Pyrite => fill_percent(fight.player().stacks as f32, 10.),
         }
     }
@@ -393,7 +393,7 @@ pub fn update(
     )>,
 ) {
     let fight = &raid.0;
-    let spells = leviathan_combat::spells(fight.role);
+    let spells = fight.active_spells();
     let mut hovered_slot = None;
     for (slot, hovered, mut border, mut background) in &mut buttons {
         if hovered.get() && slot.0 < spells.len() {
@@ -420,13 +420,17 @@ pub fn update(
         }
         if let Some(slot) = cooldown {
             node.height = percent(spells.get(slot.0).map_or(0., |spell| {
-                fill_percent(fight.player().cooldowns[slot.0], spell.cooldown)
+                if fight.onboard() {
+                    fill_percent(fight.cooldowns()[slot.0], spell.cooldown.max(spell.gcd))
+                } else {
+                    0.
+                }
             }));
         }
     }
     for (kind, mut label) in &mut labels {
         label.0 = match kind {
-            HudText::Bar(HudBar::Health) => format!("PV {:.0} %", fight.player().hp.max(0.)),
+            HudText::Bar(HudBar::Health) => format!("PV {:.0} %", fight.health_fraction() * 100.),
             HudText::Bar(HudBar::Resource) => format!(
                 "{} {:.0}",
                 if matches!(fight.role, Role::DemoDriver | Role::DemoPassenger) {
@@ -436,7 +440,11 @@ pub fn update(
                 },
                 fight.resource()
             ),
-            HudText::Bar(HudBar::Boss) => format!("{:.1} %", (fight.boss.hp / 10.).max(0.)),
+            HudText::Bar(HudBar::Boss) => format!(
+                "{:.1} % · {:.2} M PV",
+                fill_percent(fight.boss.hp, fight.boss.max_hp),
+                fight.boss.hp / 1_000_000.
+            ),
             HudText::Bar(HudBar::Cast) => {
                 if fight.boss.cast > 0. {
                     format!("Décharges {:.1}s", fight.boss.cast)
@@ -447,21 +455,38 @@ pub fn update(
             HudText::Bar(HudBar::Pyrite) => format!("Pyrite {} / 10", fight.player().stacks),
             HudText::Name(slot) => spells.get(*slot).map_or("—", |s| s.name).into(),
             HudText::Cooldown(slot) => {
-                if *slot < spells.len() && fight.player().cooldowns[*slot] > 0.05 {
-                    format!("{:.1}", fight.player().cooldowns[*slot])
+                if *slot < spells.len() && fight.onboard() && fight.cooldowns()[*slot] > 0.05 {
+                    format!("{:.1}", fight.cooldowns()[*slot])
                 } else {
                     String::new()
                 }
+            }
+            HudText::Hint
+                if fight
+                    .player_rider()
+                    .is_some_and(|r| r.state == leviathan_combat::RiderState::Turret) =>
+            {
+                format!(
+                    "Tourelles : {:.0} / {:.0} PV · {} · surcharge automatique ensuite",
+                    fight.boss.turrets[0],
+                    fight.boss.turrets[1],
+                    if fight.attacking_turrets() {
+                        "attaque en cours"
+                    } else {
+                        "1 ou clic pour attaquer"
+                    }
+                )
             }
             HudText::Hint => hovered_slot
                 .or(aim.slot)
                 .and_then(|slot| spells.get(slot))
                 .map_or(String::new(), |spell| {
                     format!(
-                        "{} · coût {:.0} · recharge {:.1}s · {}",
+                        "{} · coût {:.0} · recharge {:.1}s · GCD {:.1}s · {}",
                         spell.name,
                         spell.cost,
                         spell.cooldown,
+                        spell.gcd,
                         if spell.aimed {
                             format!("portée {:.0}–{:.0}", spell.min, spell.max)
                         } else {
@@ -472,7 +497,7 @@ pub fn update(
         };
     }
     for (slot, mut icon) in &mut icons {
-        if let Some(id) = icon_id(fight.role, slot.0) {
+        if let Some(id) = icon_id(fight.role, slot.0).filter(|_| slot.0 < spells.len()) {
             let handle = assets.load(format!("wow/ui/icon-{id}.png"));
             if icon.image != handle {
                 icon.image = handle;
@@ -503,6 +528,14 @@ pub fn update(
 mod tests {
     use super::*;
     #[test]
+    fn hm_health_bars_use_maximums_not_normalized_constants() {
+        let mut f = leviathan_combat::Fight::new(Role::DemoDriver, true);
+        f.boss.hp *= 0.5;
+        f.player_mut().hp *= 0.25;
+        assert_eq!(HudBar::Boss.percent(&f), 50.);
+        assert_eq!(HudBar::Health.percent(&f), 25.);
+    }
+    #[test]
     fn every_real_spell_has_a_copied_icon_and_empty_slots_have_none() {
         let assets = crate::models::asset_directory();
         for role in Role::ALL {
@@ -530,9 +563,9 @@ mod tests {
     #[test]
     fn cast_bar_starts_full_and_gunner_bar_uses_its_own_reserve() {
         let mut fight = leviathan_combat::Fight::new(Role::SiegeGunner, true);
-        fight.boss.cast = 3.;
+        fight.boss.cast = 10.;
         assert_eq!(HudBar::Cast.percent(&fight), 100.);
-        fight.boss.cast = 1.5;
+        fight.boss.cast = 5.;
         assert_eq!(HudBar::Cast.percent(&fight), 50.);
         fight.player_mut().energy = 80.;
         fight.player_mut().gun_energy = 25.;

@@ -14,7 +14,8 @@ Ressources Blizzard : ne pas redistribuer publiquement sans autorisation.
 
 DEMARRER
 F2 : choisir le poste avant le pull (5 postes).
-F7 : 4 tours / 0 tour avant le pull. Entrer : lancer le combat.
+F7 : 4 tours / 0 tour avant le pull. HM 10 joueurs, quatre tours par defaut, ilvl 215.
+Entrer : lancer le combat. Vitesse par defaut : 7 u/s ; retour camera : Non dans Echap.
 F5 : recommencer la tentative et conserver le poste.
 
 POSTES ET SORTS
@@ -45,7 +46,15 @@ Echap : pause/options. F1 : aide. F4 : mesures. F12 : capture.
 La perte du focus met en pause. Enregistrer est necessaire pour garder les reglages.
 
 Les autres vehicules et postes sont controles par l'IA.
-La sequence des tourelles apres deux projections est automatisee dans cette version.
+Sur le boss : 1 ou bouton Attaquer les tourelles pour demarrer le DPS continu.
+Un seul passager peut tuer les deux ; surcharge automatique apres destruction.
+Surcharge : 20 s, degats recus +50%, suppression des charges de vitesse.
 Une moto doit recuperer les joueurs au sol puis les ramener au demolisseur d'origine.
-Les chiffres et effets sont pedagogiques, pas une reproduction exacte 3.3.5.
+Si le demolisseur est detruit, 4 depose le passager au sol ; celui-ci peut marcher.
+Le passager IA accelere le demolisseur poursuivi : 25 pyrites, vitesse x2 pendant 20 s.
+Boss : 23,01 M PV normal / 88,39 M PV HM. Profil equipement epique 215.
+Rayons glace/tonnerre reconstitues et plantes WoW animees incluses.
+Les regles principales sont sourcees, mais la reproduction complete exacte reste inachevee :
+napalm, ruee du siege, degats moyens, physique et IA gardent des approximations.
+Pas de certification ChromieCraft ; voir docs/wotlk-reference.md dans le dossier parent.
 Projet non officiel, sans connexion ni modification de WoW.
