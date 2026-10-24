@@ -1,0 +1,9 @@
+/target/
+/dist/*.exe
+!/dist/LeviathanRust-0.3.exe
+/dist/*.png
+/dist/*.log
+/dist/validation*.txt
+/packages/
+__pycache__/
+*.pyc

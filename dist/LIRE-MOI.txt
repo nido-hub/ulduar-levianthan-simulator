@@ -1,0 +1,51 @@
+LEVIATHAN RUST 0.3 - BOSS, VEHICULES ET SORTS
+
+Lancer LeviathanRust-0.3.exe (ou Lancer.cmd dans le dossier parent).
+LeviathanRust.exe est l'ANCIENNE version. Elle n'a pas ete remplacee si elle etait ouverte.
+Conserver assets et settings.toml a cote du nouveau binaire.
+
+VISUELS WOW COPIES - VERSION DU 24 OCTOBRE 2026
+Modeles textures du client local : demolisseurs, sieges, motos et Leviathan.
+Animations de repos/conduite ; cadres WotLK, icones et police copies dans assets/wow.
+Le logiciel est AUTONOME : ni WoW, ni reseau, ni outil d'import requis pour jouer.
+Ne pas deplacer uniquement l'executable : conserver tout le dossier assets.
+Shaders de reflexion, particules et accessoires attaches du client non reproduits.
+Ressources Blizzard : ne pas redistribuer publiquement sans autorisation.
+
+DEMARRER
+F2 : choisir le poste avant le pull (5 postes).
+F7 : 4 tours / 0 tour avant le pull. Entrer : lancer le combat.
+F5 : recommencer la tentative et conserver le poste.
+
+POSTES ET SORTS
+Demolisseur conducteur : 1 rocher, 2 pyrite, 3 belier, 4 projeter passager charge.
+Demolisseur passager : 1 mortier, 2 roquette anti-air, 3 saisir caisse,
+                       4 acceleration, 5 charger catapulte.
+Siege conducteur : 1 belier, 2 electrochoc, 3 ruee vapeur.
+Siege tourelle : 1 roquette anti-air, 2 canon, 3 bouclier.
+Moto : 1 cor, 2 goudron, 3 acceleration, 4 secours/deposer, 5 soins passager.
+
+VISEE MANUELLE
+Choisir le sort avec 1-5 ou sa barre d'action, puis viser et cliquer a gauche.
+Vert : portee valide ; rouge : hors portee.
+Clic droit ou Echap : annuler. Aucun verrouillage automatique sur le boss.
+Le point reste fixe pendant le vol : anticiper le mouvement du boss.
+Les roquettes anti-air visent les caisses en l'air ; le crochet vise celles au sol.
+Belier, cor et electrochoc : cone DEVANT le vehicule, pas derriere.
+
+CONDUITE
+ZQSD sur AZERTY / WASD sur QWERTY, ou fleches : avancer, reculer, tourner.
+Clic gauche maintenu : regarder. Clic droit maintenu : orienter.
+Les deux boutons maintenus : avancer (hors mode de visee).
+PLUS DE STRAFE : A/E et le clic droit ne provoquent aucun glissement lateral.
+Molette : zoom. Debut/Home : recentrer. R : replacer avant le combat seulement.
+Un passager ne conduit pas ; l'IA controle son conducteur.
+
+Echap : pause/options. F1 : aide. F4 : mesures. F12 : capture.
+La perte du focus met en pause. Enregistrer est necessaire pour garder les reglages.
+
+Les autres vehicules et postes sont controles par l'IA.
+La sequence des tourelles apres deux projections est automatisee dans cette version.
+Une moto doit recuperer les joueurs au sol puis les ramener au demolisseur d'origine.
+Les chiffres et effets sont pedagogiques, pas une reproduction exacte 3.3.5.
+Projet non officiel, sans connexion ni modification de WoW.

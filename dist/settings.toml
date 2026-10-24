@@ -1,0 +1,32 @@
+# Reglages du premier prototype natif. Unites pedagogiques, pas des valeurs WoW certifiees.
+[driving]
+speed = 9.0
+reverse_factor = 0.55
+strafe_factor = 0.8
+turn_degrees = 143.0
+response_time = 0.0
+
+[camera]
+sensitivity = 0.003
+invert_y = false
+auto_center = true
+distance = 19.0
+pitch_degrees = 28.0
+fov_degrees = 60.0
+follow_response = 20.0
+
+# Positions physiques QWERTY : W/A sont les touches marquees Z/Q sur un clavier AZERTY.
+# Accepte A..Z, Up, Down, Left, Right et Space. Les fleches restent aussi actives.
+[bindings]
+forward = "W"
+backward = "S"
+turn_left = "A"
+turn_right = "D"
+strafe_left = "Q"
+strafe_right = "E"
+
+[video]
+width = 1440
+height = 900
+shadows = true
+vsync = true

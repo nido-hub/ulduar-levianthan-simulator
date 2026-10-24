@@ -1,0 +1,247 @@
+{
+  "origin": "Local World of Warcraft 3.3.5a client. Blizzard assets; not freely redistributable.",
+  "runtime": "Standalone GLB/PNG/TTF copies; no client, archive, network or StormLib access at runtime.",
+  "limits": "Diffuse/emissive materials and Idle/Drive skeletal animation; no WoW reflection shaders, particle emitters or combat attachment choreography.",
+  "sources": {
+    "Creature\\DemolisherVehicle\\DemolisherVehicle.M2": {
+      "archive": "patch-2.MPQ",
+      "sha256": "5c50b19d52688501e9203c140105f171f58e545e40dade27339008bc7d79fc55"
+    },
+    "Creature\\DemolisherVehicle\\DemolisherVehicle00.skin": {
+      "archive": "patch-2.MPQ",
+      "sha256": "f8f2d6e38328d5db046977ae4161cc0775211d3a36880af93d15d6236fc7cf3c"
+    },
+    "Creature\\DemolisherVehicle\\DemolisherVehicle01_Neutral.blp": {
+      "archive": "patch.MPQ",
+      "sha256": "c652092d6fdcfbc065bb12fa8efc9b5ffdc23374f467c1aa8e01d56c88921a95"
+    },
+    "CREATURE\\DEMOLISHERVEHICLE\\DEMOLISHERVEHICLE01_GLOW.BLP": {
+      "archive": "patch-3.MPQ",
+      "sha256": "7d7da08e858d53b92492d0aac2cc308d4792156327fc2e696a07811090c718be"
+    },
+    "Creature\\DemolisherVehicle\\DemolisherVehicle02_Neutral.blp": {
+      "archive": "patch.MPQ",
+      "sha256": "a97cef1c0554e21d273a0c8b67076450b1240d8b98044afcdf691524c37258c0"
+    },
+    "Creature\\SiegeVehicle\\SiegeVehicleHasGun.M2": {
+      "archive": "patch.MPQ",
+      "sha256": "f71543e376ad9eb5b9d3582d9a1b4c25e407cfb65abff5df8ef8638c70b45675"
+    },
+    "Creature\\SiegeVehicle\\SiegeVehicleHasGun00.skin": {
+      "archive": "common-2.MPQ",
+      "sha256": "81e37772958d6d3cbf18dc78c52225ebae158caa71c944dc795491a24360033b"
+    },
+    "Creature\\SiegeVehicle\\SiegeVehicle_01_Neutral.blp": {
+      "archive": "patch.MPQ",
+      "sha256": "9e8ea34d9ab3a701c270d798b5b196884a4ec2ae14c38e6022a22c4fc9fbe3cc"
+    },
+    "Creature\\SiegeVehicle\\SiegeVehicle_02_Neutral.blp": {
+      "archive": "patch.MPQ",
+      "sha256": "660eb4eabb2186e2b49c60c2ebb87e3c57b79e3e2fecaeb654174443608e1fcc"
+    },
+    "Creature\\MotorcycleVehicle\\MotorcycleVehicle.M2": {
+      "archive": "patch.MPQ",
+      "sha256": "0bd4e9cdb8b45ca2cea5eea621b62d57bb53274de59aebcc50522c9e0a22de8d"
+    },
+    "Creature\\MotorcycleVehicle\\MotorcycleVehicle00.skin": {
+      "archive": "patch.MPQ",
+      "sha256": "1f7381ad695b86e516d67f6cda4c5064cfb49f55c650600b99b236283c6fe36a"
+    },
+    "Creature\\MotorcycleVehicle\\MotorcycleVehicle_Alliance01.blp": {
+      "archive": "patch.MPQ",
+      "sha256": "d0fa4b9fe4ab14372ff36ab0ef005a19ff6300935b12ea0f34b4024ef88b9da8"
+    },
+    "Creature\\MotorcycleVehicle\\MotorcycleVehicle_Alliance02.blp": {
+      "archive": "patch.MPQ",
+      "sha256": "49acf193f75cda53cc37619993fedbc374dd1730e15edfe1b0ff3f24822390e6"
+    },
+    "Creature\\MotorcycleVehicle\\MotorcycleVehicle_Alliance02_glow.blp": {
+      "archive": "patch.MPQ",
+      "sha256": "95482fc0374728bdd60a88ed6278387facc9bb6eeec3d1348577e98cdd55d317"
+    },
+    "Creature\\FlameLeviathan\\FlameLeviathan.M2": {
+      "archive": "patch-2.MPQ",
+      "sha256": "8196566baf11e6c04f32f2ff3d3d5551775a71610cd46b9bea9e03bdb9f62a45"
+    },
+    "Creature\\FlameLeviathan\\FlameLeviathan00.skin": {
+      "archive": "patch-2.MPQ",
+      "sha256": "16472668be3b3b5c4d6e7089fc84fe7635eec3c8d6dfbf63aa9abba831363ec9"
+    },
+    "CREATURE\\FLAMELEVIATHAN\\FLAMELEVIATHAN.BLP": {
+      "archive": "patch.MPQ",
+      "sha256": "1bd4660dcfab58116b85ae1501d63b376201808288547488eb223aa30663c3b1"
+    },
+    "CREATURE\\FLAMELEVIATHAN\\FLAMELEVIATHAN_GLOW.BLP": {
+      "archive": "patch.MPQ",
+      "sha256": "d4839301b2f7a564db402ba4d9d80c8b2f5a0d61974e608790fb25074ac98d7a"
+    },
+    "Interface\\Vehicles\\UI-Vehicle-Frame.blp": {
+      "archive": "locale-enUS.MPQ",
+      "sha256": "ff574fb79a2b388b961e3d02298f60d2c75faa75356e5b77fafbf2cb01725d92"
+    },
+    "Interface\\Vehicles\\UI-Vehicle-Frame-Border.blp": {
+      "archive": "locale-enUS.MPQ",
+      "sha256": "21a3faaa7b7f311df4f2a7610352cb8bc0ad62c211a012e0d56982cf9ce382ba"
+    },
+    "Interface\\Vehicles\\UI-Vehicles-Trim-Alliance.blp": {
+      "archive": "locale-enUS.MPQ",
+      "sha256": "fdb16dd0053ca7ed66955ea97be980ef7c94f903a9699db5dd604b0229c5ee37"
+    },
+    "Interface\\Vehicles\\UI-Vehicles-Endcap.blp": {
+      "archive": "locale-enUS.MPQ",
+      "sha256": "bfa5928c87e794c6a78179c57f11a8fb6b925bb361bff0b5a16a1c3e3bff7976"
+    },
+    "Interface\\Buttons\\UI-Quickslot2.blp": {
+      "archive": "locale-enUS.MPQ",
+      "sha256": "650b959a820df26c866ee597887a77f9960b92e2a1a885bbbd083ecfd6b0e477"
+    },
+    "Interface\\DialogFrame\\UI-DialogBox-Background.blp": {
+      "archive": "locale-enUS.MPQ",
+      "sha256": "d3829984f48afddb8e6288dffa784efb6bd84b2e8aebc31422c47d3988dcff33"
+    },
+    "Interface\\TargetingFrame\\UI-StatusBar.blp": {
+      "archive": "locale-enUS.MPQ",
+      "sha256": "233168bdc2faf17ba297c7a0a310560c55f1ce7fca5b91aac558e56217db945d"
+    },
+    "Interface\\TargetingFrame\\UI-TargetingFrame-Elite.blp": {
+      "archive": "locale-enUS.MPQ",
+      "sha256": "b8cd1770e42808c6a175b75047090c2920f2481bf5cdd83c09c6a0040cf89e97"
+    },
+    "Interface\\Vehicles\\SeatIndicator\\Vehicle-Demolisher.blp": {
+      "archive": "lichking-locale-enUS.MPQ",
+      "sha256": "237151388e495cd10ae391fbaa6a8f00dae32bfaef194b92169142a31a9c9d34"
+    },
+    "Interface\\Vehicles\\SeatIndicator\\Vehicle-SiegeEngine.blp": {
+      "archive": "lichking-locale-enUS.MPQ",
+      "sha256": "e7b5880858fe1468c2bac8179fafe6403619c45c42fbc6a6a428bd881d68b438"
+    },
+    "Interface\\Vehicles\\SeatIndicator\\vehicle-motorcycle.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "1a0661916701d366b37092c9e3956bb9120e8cf9e817bfebde164fffd8537a24"
+    },
+    "Interface\\Icons\\Achievement_Boss_TheFlameLeviathan_01.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "eb1c215a4f90137ee68217fc872b810048a5b7db4b5f2836f782691e0ec745ae"
+    },
+    "Fonts\\FRIZQT__.TTF": {
+      "archive": "locale-enUS.MPQ",
+      "sha256": "8f798feb09a0e9dc97daf0a54b52a9a1a7b4cf7103fcb2aa1566ab36ac4dc41c"
+    },
+    "DBFilesClient\\SpellIcon.dbc": {
+      "archive": "patch-enUS-3.MPQ",
+      "sha256": "2b12326641dba1554878b3f53c993e1211e50b3839ccdbeca378a23e7b3248db"
+    },
+    "Interface\\Icons\\Spell_Holy_Heal.blp": {
+      "archive": "locale-enUS.MPQ",
+      "sha256": "cbeb601051fc67cd59756d182cccb1776db0e62de11eb67577352bf41b5864c1"
+    },
+    "Interface\\Icons\\INV_Misc_EngGizmos_12.blp": {
+      "archive": "locale-enUS.MPQ",
+      "sha256": "85ad3b77c90c8f7160fe1396f0c7440f76c2cbd0f96303e79bedbbce17f29807"
+    },
+    "Interface\\Icons\\INV_Misc_MissileSmall_Red.blp": {
+      "archive": "locale-enUS.MPQ",
+      "sha256": "e7c225a13e9125c5c36095738fb6dd666c52d475fba35422f55ce4b80e5e0768"
+    },
+    "Interface\\Icons\\INV_MISC_HOOK_01.blp": {
+      "archive": "locale-enUS.MPQ",
+      "sha256": "f103cf75a4d4df5373c74752e5febe8a1c39595080fc944c6891a3f20f1c4eb1"
+    },
+    "Interface\\Icons\\Ability_Vehicle_DemolisherFlameCatapult.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "53b77234fc16e6ec99f018b5879454df2003620da3897d86078f9a8d7e9c8fd0"
+    },
+    "Interface\\Icons\\ability_vehicle_siegeenginecannon.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "bc518923f2ea6e485970b08fcba474d9f23b9283530e56ce5719d106944d5369"
+    },
+    "Interface\\Icons\\ability_vehicle_demolisherram.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "6789e90ccedcf2134cb3a0be5a6e5ddc5f8bd904bf3cbc1a581cf9b844a03bae"
+    },
+    "Interface\\Icons\\ability_vehicle_siegeengineram.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "5ad10db7b8919ded149583db700f254a40e33e8fcd61fb08861d5b6fa6b68213"
+    },
+    "Interface\\Icons\\ability_vehicle_powertowheels.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "416665026a2d5721f95b8522b16e83f4d83683740351ea95b79e347e884d44ba"
+    },
+    "Interface\\Icons\\ability_vehicle_launchplayer.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "c65517471c64df04638da5f0462a023acfb1319839280abe142ad751f41459f7"
+    },
+    "Interface\\Icons\\ability_vehicle_sonicshockwave.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "c0ab96d4cb395b8022a0c5c24d3c3f3491f0857865a767b665ab80154479fb39"
+    },
+    "Interface\\Icons\\ability_vehicle_oiljets.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "558a30d2929c628c0cb9e4de57322ed77bafa01a799892fee36f4e520acc7eeb"
+    },
+    "Interface\\Icons\\ability_vehicle_playerloaded.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "e8703b51b06dd0eb7ca417bb3aae1a5397d97328a9c8790ead23e25f3e5fd645"
+    },
+    "Interface\\Icons\\ability_vehicle_loadselfcatapult.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "2ecb1ea75fb3a91d9e8d66c45b41514fbc21fb1c6ad1a5648b5b72c5cfccd857"
+    },
+    "Interface\\Icons\\ability_vehicle_rocketboost.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "63bb57f35b782353d1e0506661aba970e6e088b5f62a949dfd12212e23d699e3"
+    },
+    "Interface\\Icons\\ability_vehicle_siegeenginecharge.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "892a6e29fae26363513b03894980fd89c15f6e7fdfa9ccaf5d4e4e7a9a4c2834"
+    },
+    "Interface\\Icons\\ability_vehicle_liquidpyrite _blue.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "a8af0fef8b4302e7b16da8c4dcd4d02d682f03fc1a52cadcf24b715636c01be3"
+    },
+    "Interface\\Icons\\ability_vehicle_shellshieldgenerator.blp": {
+      "archive": "patch-enUS.MPQ",
+      "sha256": "862316e945f9e7c082309e82ea2f55994d81c9e96da3cdc439f9956ec9974121"
+    }
+  },
+  "outputs": {
+    "demolisher.glb": "57a580a095d6685f5f8e035935db91c4a38d686f0ae1d96090f79461f0758fc5",
+    "siege.glb": "cd9651ac4ecddcb652b64a77801b388329591a4d3a585d39afdc3abf785dbc0b",
+    "moto.glb": "80c545a53e1cf35619df6c5a47d08719073e4124dc0ee635cf9a083c86babfd4",
+    "leviathan.glb": "b51f2b2fb1c0bc2be5bbf8a8e34561670e4ff942a502f7467edb6514e96153ca",
+    "ui/vehicle-frame.png": "03ab2073b6315afaff6ed7b5b785b709bc5648f1a1d65bcb2ef883bb31368a83",
+    "ui/vehicle-border.png": "eb9e8a31c8d01afcd49a71f654464d3efaf9427e3cd018bfacaca2d0af86c83c",
+    "ui/vehicle-trim.png": "0a13ca4d1b686b63d32a3c7214e69a834696247e2008240b7bc6cc476b9069fc",
+    "ui/vehicle-endcap.png": "16b1f275afe7350960eded7c75eb8bac27ffe7056e59e9d7ff2dc68759e0a926",
+    "ui/quickslot.png": "023300e20832963df7bdf30b299e524d6ff58e5e3018773619bd22e734914118",
+    "ui/dialog.png": "74366f741aee08ef1c298ab291960b4a5e6ce6eebd57119ffac8e0bcda0e4277",
+    "ui/statusbar.png": "105a98ff790bb4364d0fafc939f61fc22a12f045f7fd1a9ad1ba23ef112d83a0",
+    "ui/target-frame.png": "c60ef5783741b5c587e793173f9fdc1bb906c03a9317495e1a54f3cb88dfcd20",
+    "ui/seat-demo.png": "6ff7e5d76aaf6409d42a6351c6321db33312c87fc616d8b81da8992be5ba5060",
+    "ui/seat-siege.png": "4e4fd86c2d6c740d9b4379e3a73089b9539dd31f8fe584cb75f453a3ef919405",
+    "ui/seat-moto.png": "e0146879c4ed178310a0ee386978577720974ec7effb19926d2ce23be6e14ab1",
+    "ui/boss.png": "6a8d1d9a1fb52992cdbbd3483273fd82d7e314274a427301910bc1211ea5a7fc",
+    "ui/slot-frame.png": "c31fc782986ca4aedda7f80e3dd679b791fbed89df68d0b94c18b98b295c7af6",
+    "ui/dock.png": "28e531d0944aa3b1eef17d08cdc0d643354257df814515174d2857391c9b3b2e",
+    "ui/trim.png": "e4f12de7bce67a6597632feae82514321bca5f0a5bf12cdb4be6c9e311067020",
+    "ui/frizqt.ttf": "8f798feb09a0e9dc97daf0a54b52a9a1a7b4cf7103fcb2aa1566ab36ac4dc41c",
+    "ui/icon-104.png": "b99b78157029b810fdb5c1210642c2a96d3850aa252cbb5c9a206237135e92b5",
+    "ui/icon-2102.png": "1f1b6ace10d0e9b8835b01b7a3b4fe6924bbb1539b28adeeadca4f3ae1c39ae7",
+    "ui/icon-2589.png": "4e4ca61916d53810b52502329bd9b3d35869c5d464b430c4cd2e731fe8852216",
+    "ui/icon-2735.png": "f0b9ce61e967d24d1973e8acdead66fec9da9106758e995df033d3537570c158",
+    "ui/icon-3760.png": "d88519040fc06be56eda1bee6e090350f9cda5369edc590799f9181358984e49",
+    "ui/icon-3761.png": "e08505c7346aa2fde0e1a8cd34a656cc2d0382954255a05b2f0bc0ded23f233c",
+    "ui/icon-3762.png": "0853841192b4da2b873310d2c8150dfd6ba3aa1f038a57cd989b938fcd8b109e",
+    "ui/icon-3763.png": "65677bc2ad1c096762f4c1096b3eac7c0a9c00719d38cec4d2872745fc3b983c",
+    "ui/icon-3766.png": "65c8971237b07b9df6dc8fb49731f4582bf3b86e2e99b94598cc68567bbec2ca",
+    "ui/icon-3768.png": "b124fdfaee9216b98425f75248de48cc1e4f4c6f59d854a5ace967bd15ee4995",
+    "ui/icon-3769.png": "bb9917da4a3700324b67ae2caed261dea7cdb7acd22d34fdcb2f9ece70364ba4",
+    "ui/icon-3770.png": "8bf7f4a6d457c73584b24d1ab82e590ffea6206bb8b151ef1b17e477efac8771",
+    "ui/icon-3771.png": "ee2fe435fe83497fd051db497665bb49e34059c604e13de7c109be4c5348c1f2",
+    "ui/icon-3772.png": "775d27f0b3e657f5e9fc9ece1a87973ff5eb75703ad61c03fa63d862d1bf799b",
+    "ui/icon-3773.png": "beab550f9359b72262cab8b5ea792f5fa666db378abcffef7df7b8d0cd561f64",
+    "ui/icon-3774.png": "7cc4616fe9395d83dc73b1cb79d878c2808706fb9a239c5069139981ed194c1f",
+    "ui/icon-3779.png": "7b0e59b2ca49c2692f746d12483006884e41a176dd1501e93d8b0fe440afcd43",
+    "ui/icon-3845.png": "64003129a5ba8007d494c09711a4abe0d1b044031c68bfb10271ec0ac4d9f0b5"
+  }
+}
